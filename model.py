@@ -454,18 +454,18 @@ class tiger_cnn5_64(tiger_cnn5_512):
 # loading pretrained model on dve: dve=True, model_path=PRETRAINED_MODEL_PATH
 ##################################
 class tiger_cnn5_v1(nn.Module):
-    def __init__(self, class_num,stride=1,model_path=None,droprate=0.5,linear_num=512,circle=True,use_posture=True,dve=False,smallscale=True):
+    def __init__(self, class_num,stride=1,droprate=0.5,linear_num=512,circle=True,use_posture=True,dve=False,smallscale=True):
         # dve means dve feature is needed whether for method1 or joint training
         super(tiger_cnn5_v1, self).__init__()
         self.dve = dve
         if dve:
             self.model = tiger_cnn5_64(stride=1,smallscale=smallscale)
             
-            if model_path is not None:
-                checkpoint = torch.load(model_path,map_location=torch.device('cpu'))
-                checkpoint['state_dict'] = {k[7:]:v for k,v in checkpoint['state_dict'].items() }
-                self.model.load_state_dict(checkpoint['state_dict'])
-                print('successfully loaded dve cnn5')
+            # if model_path is not None:
+            #     checkpoint = torch.load(model_path,map_location=torch.device('cpu'))
+            #     checkpoint['state_dict'] = {k[7:]:v for k,v in checkpoint['state_dict'].items() }
+            #     self.model.load_state_dict(checkpoint['state_dict'])
+            #     print('successfully loaded dve cnn5')
         else:
             self.model = tiger_cnn5_512(stride,smallscale=smallscale)
         self.model.backbone.last_linear = nn.Sequential()

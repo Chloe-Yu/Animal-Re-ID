@@ -265,7 +265,14 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
                     writer.add_scalar('val_acc',epoch_acc, epoch)
                 if opt.use_posture:
                     writer.add_scalar('val_acc_posture',epoch_acc_posture, epoch)
-           
+            if phase == 'train':
+                scheduler.step()
+                writer.add_scalar('train_loss',epoch_loss, epoch)
+                if opt.ent_cls:
+                    writer.add_scalar('train_acc',epoch_acc, epoch)
+                if opt.use_posture:
+                    writer.add_scalar('train_acc_posture',epoch_acc_posture, epoch)
+       
 
 
     save_network(model,epoch,last=True)        
@@ -289,7 +296,6 @@ if __name__ =='__main__':
     parser.add_argument("--data_type",required=True, default = 'yak',type=str)
     parser.add_argument('--batch_size', default=32, type=int, help='batchsize')
     parser.add_argument('--triplet_sampler', action='store_true', help='making sure training batch has enough pos and neg.' )
-    parser.add_argument('--batch_hard', action='store_true', help='use batch hard strategy to form batch' )
     parser.add_argument('--use_posture', action='store_true', help='use the posture data for supervision' )
     # optimizer
     parser.add_argument('--label_smoothing', action='store_true', help='adds label smoothing' )
@@ -298,7 +304,7 @@ if __name__ =='__main__':
     parser.add_argument('--total_epoch', default=60, type=int, help='total training epoch')
     # backbone
     parser.add_argument('--linear_num', default=512, type=int, help='feature dimension: 512 or default or 0 (linear=False)')
-    parser.add_argument('--stride', default=2, type=int, help='stride')
+    parser.add_argument('--stride', default=1, type=int, help='stride')
     parser.add_argument('--droprate', default=0.5, type=float, help='drop rate')
     parser.add_argument('--use_swin', action='store_true', help='use swin transformer 224x224' )
     parser.add_argument('--use_resnet', action='store_true', help='use resnet 64 dve' )
@@ -307,7 +313,7 @@ if __name__ =='__main__':
     # loss
     parser.add_argument('--warm_epoch', default=0, type=int, help='the first K epoch that needs warm up')
     #parser.add_argument('--freeze_dve', default=0, type=int, help='the first few epoch that needs to freeze dve')
-    parser.add_argument('--freeze_always', action='store_true', help='always keep the first layers for dve' )
+    #parser.add_argument('--freeze_always', action='store_true', help='always keep the first layers for dve' )
     parser.add_argument('--circle', action='store_true', help='use Circle loss' )
     parser.add_argument('--triplet', action='store_true', help='use triplet loss' )
     parser.add_argument('--ent_cls', action='store_true', help='use Classification loss for enetity' )
@@ -442,11 +448,11 @@ if __name__ =='__main__':
     return_feature = True # for our re-id purpose, we always need feature
     
     if opt.use_cnn5_v1:
-        model = tiger_cnn5_v1(numClasses,model_path=None if opt.phase3 else opt.model_path,linear_num=opt.linear_num,circle=return_feature,use_posture=opt.use_posture,dve=not opt.ori_stride)
+        model = tiger_cnn5_v1(numClasses,stride = opt.stride,linear_num=opt.linear_num,circle=return_feature,use_posture=opt.use_posture,dve=opt.joint or opt.joint_all,smallscale=opt.ori_stride)
     elif opt.use_swin:
         model = ft_net_swin(numClasses, opt.droprate, return_feature = return_feature, linear_num=opt.linear_num, use_posture=opt.use_posture)
     elif opt.way1_dve:
-        model = seresnet_dve_1(numClasses, opt.droprate, opt.stride, circle = return_feature, linear_num=opt.linear_num,dve_dim=64)
+        model = seresnet_dve_1(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num,dve_dim=64,use_posture=opt.use_posture)
     else:
         sys.exit('model is not specified.')
     print(model)
