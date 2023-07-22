@@ -7,6 +7,7 @@ __pycache__/
 core
 core.*
 queue.out
+*.out
 show.png
 sitemap.xml
 result/challenge_test/submit_*.json
