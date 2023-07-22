@@ -60,6 +60,53 @@ class dataset(Dataset):
         return img, label
 
 
+
+
+class dataset_test(Dataset):
+    def __init__(self, root, label,unlabeled, transform=None, signal=' '):
+        self._root = root
+        self._label = label
+        self._transform = transform
+        self._unlabeled = unlabeled
+        self._list_images(self._root, self._label, signal)
+
+    def _list_images(self, root, image_names, signal):
+        self.synsets = []
+        self.synsets.append(root)
+        self.items = []
+
+        c = 0
+        for line in image_names:
+            cls = line.rstrip('\n').split(signal)
+            image_name = cls.pop(0)
+            if os.path.isfile(os.path.join(root, image_name)):
+                if self._unlabeled:
+                    self.items.append((os.path.join(root, image_name), image_name))
+                else:
+                    self.items.append((os.path.join(root, image_name), float(cls[0]), image_name))
+            else:
+                print(os.path.join(root, image_name))
+            c += 1
+        print('the total image is ', c)
+
+    def __len__(self):
+        return len(self.items)
+
+    def __getitem__(self, index):
+        # return img, img_name, (label)
+        oriimg = Image.open(self.items[index][0])
+        oriimg = oriimg.convert('RGB')
+        if self._transform is not None:
+            img = self._transform(oriimg)
+             
+        if self._unlabeled:
+            return img, self.items[index][1]
+
+        return img, self.items[index][2], self.items[index][1]
+
+
+
+
 ########################################################################
 # return image, label, and direction(left/right)
 #
@@ -202,7 +249,7 @@ class dataset_direction_triplet(Dataset):
                 dict_train[label].append((name, direct))
         return dict_train
 
-    def get_image(self, image_name, ):
+    def get_image(self, image_name):
         img = Image.open(image_name)
         img = img.convert('RGB')
         if self._initial_transform is not None:
@@ -246,9 +293,9 @@ class dataset_direction_triplet(Dataset):
         negative_label = random.choice(list(set(self._labels) ^ set([anchor_label])))
         negative_name, negative_direct = random.choice(self._dict_train[negative_label])
 
-        positive_image = self.get_image(positive_name, self._transform, self._initial_transform)
-        negative_image = self.get_image(negative_name, self._transform, self._initial_transform)
-        anchor_image = self.get_image(anchor_name, self._transform,self._initial_transform)
+        positive_image = self.get_image(positive_name)
+        negative_image = self.get_image(negative_name)
+        anchor_image = self.get_image(anchor_name)
         
         assert negative_name != anchor_name
         

@@ -5,6 +5,7 @@ from PIL import Image
 import torch
 import math
 from mydataset import *
+from torch.utils.data import Dataset, DataLoader
 
 IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
@@ -93,6 +94,43 @@ def get_label(label_path):
     f = open(label_path)
     lines = f.readlines()
     return lines
+
+
+def load_gallery_probe_data(root, gallery_paths, probe_paths, resize_size=(324, 504), input_size=(288, 448),
+                            batch_size=32, num_workers=0,data_transforms=None):
+    gallery_list = []
+    for i in gallery_paths:
+        tmp = get_label(i)
+        gallery_list = gallery_list + tmp
+
+    probe_list = []
+    for i in probe_paths:
+        tmp = get_label(i)
+        probe_list = probe_list + tmp
+
+    # changed this to load for labeled data
+    gallery_dataset = dataset_test(root, gallery_list, unlabeled=False, 
+                                   transform=data_transforms)
+    probe_dataset = dataset_test(root, probe_list, unlabeled=False,
+                                 transform=data_transforms)
+
+    gallery_iter = DataLoader(
+        gallery_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers
+    )
+    probe_iter = DataLoader(
+        probe_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers
+    )
+
+    return gallery_iter, probe_iter
+
+
+
 
 
 def load_triplet_direction_gallery_probe(root, train_paths, probe_paths, signal=' ',
@@ -210,7 +248,7 @@ def train_collate(batch):
     directs = []
     warps = []
     metas = []
-    dve_warp = len(batch[b]) > 3
+    dve_warp = len(batch[0]) > 3
     for b in range(batch_size):
         if batch[b][0] is None:
             continue

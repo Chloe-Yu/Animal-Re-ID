@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn import init
 from torch.autograd import Variable
 import torch.utils.model_zoo as model_zoo
+from torchvision import models
 import timm
 from swin_transformer import SwinTransformer
 from itertools import chain
@@ -592,13 +593,46 @@ class seresnet_dve_1(nn.Module):
         x = self.classifier(x)
      
         return x
+    
+    def get_base_params(self):
+        return chain(self.model.layer0.parameters(),self.model.layer1.parameters(),self.model.layer2.parameters())
 
     def fix_params(self, is_training=True):
-        for p in self.model.parameters():
+        for p in self.get_base_params():
             p.requires_grad = is_training
 
 
+class ft_net_64(nn.Module):
 
+    def __init__(self, stride=2, ibn=False):
+        super(ft_net_64, self).__init__()
+        model_ft = models.resnet50(pretrained=True)
+        if ibn==True:
+            model_ft = torch.hub.load('XingangPan/IBN-Net', 'resnet50_ibn_a', pretrained=True)
+        # avg pooling to global pooling
+        if stride == 1:
+            model_ft.layer2[0].downsample[0].stride = (1,1)
+            model_ft.layer2[0].conv2.stride = (1,1)
+        self.model = model_ft
+        
+        self.last_conv = nn.Sequential(
+            nn.Conv2d(512, 64, 1, 1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True)
+        )
+        _weight_init(self.last_conv)
+        
+
+    def forward(self, x):
+        x = self.model.conv1(x)
+        x = self.model.bn1(x)
+        x = self.model.relu(x)
+        x = self.model.maxpool(x)
+        x = self.model.layer1(x)
+        x = self.model.layer2(x) #([8, 512, 56, 56])
+        x = self.last_conv(x) #([8, 64, 56, 56])
+        
+        return [x]
     
 if __name__ == '__main__':
     globe = Variable(torch.randn(2, 3, 224, 224))

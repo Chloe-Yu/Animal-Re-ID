@@ -2,7 +2,7 @@
 outputs/
 model/*
 logs/
-slurm/
+slurm/*
 __pycache__/
 core
 core.*

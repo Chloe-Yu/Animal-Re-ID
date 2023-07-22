@@ -1,5 +1,5 @@
 import argparse
-from model import  ft_net_swin,seresnet_dve_1,tiger_cnn5_v1,tiger_cnn5_64
+from model import  ft_net_swin,seresnet_dve_1,tiger_cnn5_v1,tiger_cnn5_64,ft_net_64
 from utils import fliplr,init_log,save_network
 import os
 from shutil import copyfile
@@ -134,10 +134,10 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
                     if phase == 'val':
                         with torch.no_grad():
                             dve_outputs = way1_dve(inputs)
-                            outputs = model(inputs,dve_outputs)
+                            outputs = model(inputs,dve_outputs[0])
                     else:
                         dve_outputs = way1_dve(inputs)
-                        outputs = model(inputs,dve_outputs)
+                        outputs = model(inputs,dve_outputs[0])
                 else:
                     if phase == 'val':
                         with torch.no_grad():
@@ -249,7 +249,7 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
                                       remove_closest=False, distance='euclidean')
                 if ap > best_ap:
                     best_ap = ap
-                    save_network(model,epoch,best=True)
+                    save_network(model,epoch,name,best=True)
                 
                 writer.add_scalar('Rank@1',CMC[0].numpy(), epoch)
                 writer.add_scalar('Rank@5',CMC[4].numpy(), epoch)
@@ -258,7 +258,7 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
              
                 
                 if epoch in [99,199,229,259,289,309]:
-                    save_network(model,epoch)
+                    save_network(model,epoch,name)
                 
                 writer.add_scalar('val_loss',epoch_loss, epoch)
                 if opt.ent_cls:
@@ -275,7 +275,7 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
        
 
 
-    save_network(model,epoch,last=True)        
+    save_network(model,epoch,name,last=True)        
 
 
     
@@ -399,7 +399,7 @@ if __name__ =='__main__':
             )
         collate_fn=torch.utils.data.dataloader.default_collate
     
-    dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
+    dataset_sizes = {'train': len(train_data),'val': len(val_data) }
     dict_nclasses = {'yak':121,'tiger':107,'elephant':337,'all':565}
     numClasses = dict_nclasses[opt.data_type]
     assert num_classes == numClasses
@@ -448,7 +448,7 @@ if __name__ =='__main__':
     return_feature = True # for our re-id purpose, we always need feature
     
     if opt.use_cnn5_v1:
-        model = tiger_cnn5_v1(numClasses,stride = opt.stride,linear_num=opt.linear_num,circle=return_feature,use_posture=opt.use_posture,dve=opt.joint or opt.joint_all,smallscale=opt.ori_stride)
+        model = tiger_cnn5_v1(numClasses,stride = opt.stride,linear_num=opt.linear_num,circle=return_feature,use_posture=opt.use_posture,dve=opt.joint or opt.joint_all,smallscale=not opt.ori_stride)
     elif opt.use_swin:
         model = ft_net_swin(numClasses, opt.droprate, return_feature = return_feature, linear_num=opt.linear_num, use_posture=opt.use_posture)
     elif opt.way1_dve:
@@ -457,8 +457,6 @@ if __name__ =='__main__':
         sys.exit('model is not specified.')
     print(model)
     
-    model = model.cuda()
-    model = nn.DataParallel(model)
     
     # optimization
     optim_name = optim.SGD
@@ -467,23 +465,22 @@ if __name__ =='__main__':
         base_params = list(map(id, model.model.backbone.parameters()))
         extra_params = list(filter(lambda p: id(p) not in base_params, model.parameters()))
         base_params = model.model.backbone.parameters()
-        
-        optimizer_ft = optim_name([
-                    {'params': extra_params, 'lr': opt.lr},
-                    {'params': base_params, 'lr': 0.1*opt.lr},
-                ], weight_decay=opt.weight_decay, momentum=0.9, nesterov=True)
-
-    elif opt.way1_dve or opt.use_swin:
+    elif opt.way1_dve:
+        base_params = list(map(id, model.get_base_params()))
+        extra_params = list(filter(lambda p: id(p) not in base_params, model.parameters()))
+        base_params = model.get_base_params()
+    elif opt.use_swin:
         base_params = list(map(id, model.model.parameters()))
         extra_params = list(filter(lambda p: id(p) not in base_params, model.parameters()))
         base_params = model.model.parameters()
-        optimizer_ft = optim_name([
-                    {'params': base_params, 'lr': 0.1*opt.lr},
-                    {'params': extra_params, 'lr': opt.lr}
-                ], weight_decay=opt.weight_decay, momentum=0.9, nesterov=True)
     else:
         sys.exit('Invalid Condition.')
         
+    optimizer_ft = optim_name([
+                    {'params': base_params, 'lr': 0.1*opt.lr},
+                    {'params': extra_params, 'lr': opt.lr}
+                ], weight_decay=opt.weight_decay, momentum=0.9, nesterov=True)
+    
     exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer_ft, step_size=opt.total_epoch*2//3, gamma=0.1)
     
     if opt.label_smoothing:
@@ -494,7 +491,8 @@ if __name__ =='__main__':
     
     way1_dve=None
     if opt.way1_dve:
-        way1_dve = tiger_cnn5_64(stride=1)
+        #way1_dve = tiger_cnn5_64(stride=1)
+        way1_dve = ft_net_64(stride=1)
         way1_dve = way1_dve.cuda()
         way1_dve = nn.DataParallel(way1_dve)
         
@@ -507,5 +505,6 @@ if __name__ =='__main__':
         #freeze the network
         for _, para in way1_dve.named_parameters():
             para.requires_grad = False
-
+    model = model.cuda()
+    model = nn.DataParallel(model)
     train(model,criterion,optimizer_ft,exp_lr_scheduler,dataloaders,opt.total_epoch,writer,way1_dve)
