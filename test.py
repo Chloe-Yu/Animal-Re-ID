@@ -280,7 +280,7 @@ if __name__ == '__main__':
 
     con = 'concat_' if opt.concat else ''
     to = 'to_' if opt.transform_ori else ''
-    res_name = seg+ con+to+ name+str(seed)+'.json'
+    res_name = seg+ con+to+ name+str(seed)+'.txt'
     
     if opt.model_path is not None:
         res_name = opt.dataset_type+'_'+opt.model_path.split('/')[-2]+'_'+opt.model_path.split('/')[-1][:-4]+'_'+res_name
@@ -295,6 +295,10 @@ if __name__ == '__main__':
     
     metric['opt'] = opt_dic
     result_metric = open('./result/'+res_name,'w')
-    json.dump(metric, result_metric)
+    json.dump(metric, open('./result/'+res_name[:-3]+'json','w'))
+    
+    metric_str = "\n".join([k+': '+str(v) for k,v in metric.items()])
+    result_metric.write(metric_str)
+    result_metric.close()
   
  
