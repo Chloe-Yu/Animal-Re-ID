@@ -9,7 +9,7 @@ from torchvision import transforms
 import os
 import random
 from PIL import Image
-from model import  ft_net_swin, tiger_cnn5_64,tiger_cnn5_v1,seresnet_dve_1
+from model import  ft_net_swin, tiger_cnn5_64,tiger_cnn5_v1,seresnet_dve_1,ft_net_64
 from tiger_eval import evaluate_tiger
 import json
 import sys
@@ -265,7 +265,7 @@ if __name__ == '__main__':
     
     dve=None
     if opt.way1_dve:
-        dve = tiger_cnn5_64(stride=1)
+        dve = ft_net_64(stride=1)
         dve = dve.cuda()
         dve = nn.DataParallel(dve)
         if opt.resume is not None:

@@ -4,7 +4,7 @@
 #SBATCH --nodes 1
 #SBATCH --ntasks 1
 
-#SBATCH --time 4:00:00
+#SBATCH --time 6:00:00
 #SBATCH --partition gpu
 
 #SBATCH --cpus-per-task 1
@@ -41,7 +41,12 @@
 
 #139 140
 #/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name seresnet_dve_1_circle_posture_segv3_ls_tiger_mod  --batch_size 32 --ent_cls --circle --way1_dve --lr 0.01 --total_epoch 100 -d 0,1 --data_type tiger --use_posture --warm_epoch 3  --label_smoothing --model_path /home/yinyu/Thesis/resnet-64-epoch120.pth >./slurm/seresnet_dve_1_circle_posture_segv3_ls_tiger_md.out 2>&1
-/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name seresnet_dve_1_circle_posture_segv3_ls_yak_mod  --batch_size 32 --ent_cls --circle --way1_dve --lr 0.01 --total_epoch 100 -d 0,1 --data_type yak --use_posture --warm_epoch 3  --label_smoothing --model_path /home/yinyu/Thesis/resnet-64-epoch120.pth >./slurm/seresnet_dve_1_circle_posture_segv3_ls_yak_md.out 2>&1
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name seresnet_dve_1_circle_posture_segv3_ls_yak_mod  --batch_size 32 --ent_cls --circle --way1_dve --lr 0.01 --total_epoch 100 -d 0,1 --data_type yak --use_posture --warm_epoch 3  --label_smoothing --model_path /home/yinyu/Thesis/resnet-64-epoch120.pth >./slurm/seresnet_dve_1_circle_posture_segv3_ls_yak_md.out 2>&1
 
-
+#170 171
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name seresnet_dve_2_circle_posture_segv3_ls_yak --version 2  --batch_size 32 --ent_cls --circle --way1_dve --lr 0.01 --total_epoch 100 -d 0,1 --data_type yak --use_posture --warm_epoch 3  --label_smoothing --model_path /home/yinyu/Thesis/resnet-64-epoch120.pth >./slurm/seresnet_dve_2_circle_posture_segv3_ls_yak.out 2>&1
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name seresnet_dve_2_circle_posture_segv3_ls_tiger --version 2  --batch_size 32 --ent_cls --circle --way1_dve --lr 0.01 --total_epoch 100 -d 0,1 --data_type tiger --use_posture --warm_epoch 3  --label_smoothing --model_path /home/yinyu/Thesis/resnet-64-epoch120.pth >./slurm/seresnet_dve_2_circle_posture_segv3_ls_yak.out 2>&1
+#172 173
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name seresnet_dve_1_5_circle_posture_segv3_ls_yak --version 1_5  --batch_size 32 --ent_cls --circle --way1_dve --lr 0.01 --total_epoch 100 -d 0,1 --data_type yak --use_posture --warm_epoch 3  --label_smoothing --model_path /home/yinyu/Thesis/resnet-64-epoch120.pth >./slurm/seresnet_dve_1_5_circle_posture_segv3_ls_yak.out 2>&1
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name seresnet_dve_1_5_circle_posture_segv3_ls_tiger --version 1_5  --batch_size 32 --ent_cls --circle --way1_dve --lr 0.01 --total_epoch 100 -d 0,1 --data_type tiger --use_posture --warm_epoch 3  --label_smoothing --model_path /home/yinyu/Thesis/resnet-64-epoch120.pth >./slurm/seresnet_dve_1_5_circle_posture_segv3_ls_tiger.out 2>&1
 

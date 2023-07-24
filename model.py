@@ -505,6 +505,15 @@ class tiger_cnn5_v1(nn.Module):
         
         return dve_f
     
+    def eval_forward(self,x):
+        x = self.model.backbone.layer0(x)
+        x = self.model.backbone.layer1(x)
+        x = self.model.backbone.layer2(x)
+        x = self.model.backbone.layer3(x)
+        x = self.model.backbone.layer4(x) #[B,2048,28,28]
+        return x
+        
+    
     def fix_params(self, is_training=True):
         for p in self.model.backbone.parameters():
             p.requires_grad = is_training
@@ -571,9 +580,7 @@ class seresnet_dve_1(nn.Module):
             nn.ReLU(inplace=True)
         )
         self.merge.apply(weights_init_kaiming)
-        
-        
-        
+           
         self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle, use_posture=use_posture)
    
         
@@ -595,11 +602,139 @@ class seresnet_dve_1(nn.Module):
         return x
     
     def get_base_params(self):
-        return chain(self.model.layer0.parameters(),self.model.layer1.parameters(),self.model.layer2.parameters())
+        return self.model.parameters()
 
     def fix_params(self, is_training=True):
         for p in self.get_base_params():
             p.requires_grad = is_training
+
+class seresnet_dve_1_5(nn.Module):
+
+    def __init__(self, class_num, droprate=0.5, stride=1, circle=True, linear_num=512,dve_dim=64,use_posture=True):
+        super(seresnet_dve_1_5, self).__init__()
+        model = seresnet50(pretrained=True)
+        if stride == 1:
+            model.layer2[0].downsample[0].stride = (1, 1)
+            model.layer2[0].conv2.stride = (1, 1)
+            model.layer4[0].downsample[0].stride = (1, 1)
+            model.layer4[0].conv2.stride = (1, 1)
+        
+        self.model = model
+        self.model.last_linear = nn.Sequential()
+        
+        self.circle = circle
+        self.merge = nn.Sequential(
+            nn.Conv2d(
+                        in_channels=512+dve_dim,
+                        out_channels=512,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0
+            ),#B,512,56,56
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True)
+        )
+        self.merge.apply(weights_init_kaiming)
+           
+        self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle, use_posture=use_posture)
+   
+        
+    def forward(self, x, f_dev):
+        print('dve',f_dev)
+        
+        x = self.model.layer0(x)
+        x = self.model.layer1(x)
+        x = self.model.layer2(x)#B,512,56,56
+        print('x',x)
+        x = torch.concat([x,f_dev],dim=1) #B,512+64,56,56
+
+        x = self.merge(x) #B,512,56,56
+        
+        x = self.model.layer3(x)
+        x = self.model.layer4(x)
+        
+        x = torch.mean(torch.mean(x, dim=2), dim=2)
+        x = self.classifier(x)
+     
+        return x
+    
+    def get_base_params(self):
+        return self.model.parameters()
+
+    def fix_params(self, is_training=True):
+        for p in self.get_base_params():
+            p.requires_grad = is_training
+
+
+class seresnet_dve_2(nn.Module):
+
+    def __init__(self, class_num, droprate=0.5, stride=1, circle=True, linear_num=512,dve_dim=64,use_posture=True):
+        super(seresnet_dve_2, self).__init__()
+        model = seresnet50(pretrained=True)
+        if stride == 1:
+            model.layer2[0].downsample[0].stride = (1, 1)
+            model.layer2[0].conv2.stride = (1, 1)
+            model.layer4[0].downsample[0].stride = (1, 1)
+            model.layer4[0].conv2.stride = (1, 1)
+        
+        self.model = model
+        self.model.last_linear = nn.Sequential()
+        
+        self.circle = circle
+        self.pre_merge = nn.Sequential(
+            nn.Conv2d(
+                        in_channels=512,
+                        out_channels=2*dve_dim,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0
+            ),#B,128,56,56
+            nn.BatchNorm2d(2*dve_dim),
+            nn.ReLU(inplace=True)
+        )
+        self.merge = nn.Sequential(
+            nn.Conv2d(
+                        in_channels=3*dve_dim,
+                        out_channels=512,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+            ),#B,64*3,56,56
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True)
+        )
+        self.pre_merge.apply(weights_init_kaiming)
+        self.merge.apply(weights_init_kaiming)
+           
+        self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle, use_posture=use_posture)
+   
+        
+    def forward(self, x, f_dev):
+        
+        x = self.model.layer0(x)
+        x = self.model.layer1(x)
+        x = self.model.layer2(x)#B,512,56,56
+        
+        x = self.pre_merge(x) #B,128,56,56
+        x = torch.concat([x,f_dev],dim=1) #B,128+64,56,56
+        x = self.merge(x) #B,512,56,56
+        
+        x = self.model.layer3(x)
+        x = self.model.layer4(x)
+        
+        x = torch.mean(torch.mean(x, dim=2), dim=2)
+        x = self.classifier(x)
+     
+        return x
+    
+    def get_base_params(self):
+        return self.model.parameters()
+    
+    def fix_params(self, is_training=True):
+        for p in self.get_base_params():
+            p.requires_grad = is_training
+
+
 
 
 class ft_net_64(nn.Module):
@@ -635,8 +770,9 @@ class ft_net_64(nn.Module):
         return [x]
     
 if __name__ == '__main__':
-    globe = Variable(torch.randn(2, 3, 224, 224))
+    x = Variable(torch.randn(2, 3, 224, 224))
     f_dve = Variable(torch.randn(2, 64, 56, 56))
     #model = tiger_cnn5_v1(101,dve=True)
-    #out = model(x,f_dve)
-    #print(model)
+    model = seresnet_dve_2(101)
+    out = model(x,f_dve)
+    print(out[0].shape)

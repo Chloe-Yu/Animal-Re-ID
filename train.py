@@ -1,5 +1,5 @@
 import argparse
-from model import  ft_net_swin,seresnet_dve_1,tiger_cnn5_v1,tiger_cnn5_64,ft_net_64
+from model import  ft_net_swin,seresnet_dve_1,tiger_cnn5_v1,tiger_cnn5_64,ft_net_64,seresnet_dve_2,seresnet_dve_1_5
 from utils import fliplr,init_log,save_network
 import os
 from shutil import copyfile
@@ -292,6 +292,7 @@ if __name__ =='__main__':
     parser.add_argument('--ori_dim', action='store_true', help='use original input dimension' )
     parser.add_argument('--ori_stride', action='store_true', help='no modification to layer 2 of se-resnet' )
     parser.add_argument('--way1_dve', action='store_true', help='use way1 of combining dve with re-id' )
+    parser.add_argument('--version',default='1',type=str, help='version of way1 to use' )
     # data
     parser.add_argument("--data_type",required=True, default = 'yak',type=str)
     parser.add_argument('--batch_size', default=32, type=int, help='batchsize')
@@ -452,7 +453,14 @@ if __name__ =='__main__':
     elif opt.use_swin:
         model = ft_net_swin(numClasses, opt.droprate, return_feature = return_feature, linear_num=opt.linear_num, use_posture=opt.use_posture)
     elif opt.way1_dve:
-        model = seresnet_dve_1(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num,dve_dim=64,use_posture=opt.use_posture)
+        if opt.version == '1':
+            model = seresnet_dve_1(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num,dve_dim=64,use_posture=opt.use_posture)
+        elif opt.version == '2':
+            model = seresnet_dve_2(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num,dve_dim=64,use_posture=opt.use_posture)
+        elif opt.version == '1_5':
+            model = seresnet_dve_1_5(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num,dve_dim=64,use_posture=opt.use_posture)
+        else:
+            sys.exit('way1 model is not specified.')
     else:
         sys.exit('model is not specified.')
     print(model)
