@@ -360,16 +360,16 @@ if __name__ =='__main__':
         # joint dve and reid on one species
         warper = Warper(h,w)
         
-    train_path_dic = {'tiger':'/home/yinyu/Thesis/original/AmurTigerReID/datalist/mytrain.txt',
-                      'yak':'/home/yinyu/Thesis/original/AmurTigerReID/datalist/yak_mytrain_aligned.txt',
-                      'elephant':'/home/yinyu/Thesis/original/AmurTigerReID/datalist/ele_train.txt',
-                      'all':'/home/yinyu/Thesis/original/AmurTigerReID/datalist/all_train_aligned.txt'
+    train_path_dic = {'tiger':'./datalist/mytrain.txt',
+                      'yak':'./datalist/yak_mytrain_aligned.txt',
+                      'elephant':'./datalist/ele_train.txt',
+                      'all':'./datalist/all_train_aligned.txt'
                       }
 
-    probe_path_dic = {'tiger':'/home/yinyu/Thesis/original/AmurTigerReID/datalist/myval.txt',
-                        'yak':'/home/yinyu/Thesis/original/AmurTigerReID/datalist/yak_myval_aligned.txt',
-                        'elephant':'/home/yinyu/Thesis/original/AmurTigerReID/datalist/ele_val.txt',
-                        'all':'/home/yinyu/Thesis/original/AmurTigerReID/datalist/all_val_aligned.txt'
+    probe_path_dic = {'tiger':'./datalist/myval.txt',
+                        'yak':'./datalist/yak_myval_aligned.txt',
+                        'elephant':'./datalist/ele_val.txt',
+                        'all':'./datalist/all_val_aligned.txt'
                         }
     root = '/home/yinyu/Thesis/data/Animal-Seg-V3/'
 

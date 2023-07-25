@@ -640,12 +640,11 @@ class seresnet_dve_1_5(nn.Module):
    
         
     def forward(self, x, f_dev):
-        print('dve',f_dev)
         
         x = self.model.layer0(x)
         x = self.model.layer1(x)
         x = self.model.layer2(x)#B,512,56,56
-        print('x',x)
+        
         x = torch.concat([x,f_dev],dim=1) #B,512+64,56,56
 
         x = self.merge(x) #B,512,56,56

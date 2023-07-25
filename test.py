@@ -9,7 +9,7 @@ from torchvision import transforms
 import os
 import random
 from PIL import Image
-from model import  ft_net_swin, tiger_cnn5_64,tiger_cnn5_v1,seresnet_dve_1,ft_net_64
+from model import  ft_net_swin, tiger_cnn5_64,tiger_cnn5_v1,seresnet_dve_1,ft_net_64,seresnet_dve_1_5,seresnet_dve_2
 from tiger_eval import evaluate_tiger
 import json
 import sys
@@ -219,16 +219,16 @@ if __name__ == '__main__':
                
         ])
         
-    gallery_path_dic = {'tiger':'/home/yinyu/Thesis/baseline_reid/datalist/mytest.txt',
-                    's_yak':'/home/yinyu/Thesis/baseline_reid/datalist/yak_gallery_simple.txt',
-                    'h_yak':'/home/yinyu/Thesis/baseline_reid/datalist/yak_gallery_hard.txt',
-                    'elephant':'/home/yinyu/Thesis/baseline_reid/datalist/ele_new_test_gallery.txt',
-                    'debug':'/home/yinyu/Thesis/baseline_reid/datalist/debug_ele_train.txt'}
-    probe_path_dic = {'tiger':'/home/yinyu/Thesis/baseline_reid/datalist/mytest.txt',
-                        's_yak':'/home/yinyu/Thesis/baseline_reid/datalist/yak_probe_simple.txt',
-                        'h_yak':'/home/yinyu/Thesis/baseline_reid/datalist/yak_probe_hard.txt',
-                        'elephant':'/home/yinyu/Thesis/baseline_reid/datalist/ele_new_test_probe.txt',
-                        'debug':'/home/yinyu/Thesis/baseline_reid/datalist/debug_ele_train.txt'}
+    gallery_path_dic = {'tiger':'./datalist/mytest.txt',
+                    's_yak':'./datalist/yak_gallery_simple.txt',
+                    'h_yak':'./datalist/yak_gallery_hard.txt',
+                    'elephant':'./datalist/ele_new_test_gallery.txt',
+                    'debug':'./datalist/debug_ele_train.txt'}
+    probe_path_dic = {'tiger':'./datalist/mytest.txt',
+                        's_yak':'./datalist/yak_probe_simple.txt',
+                        'h_yak':'./datalist/yak_probe_hard.txt',
+                        'elephant':'./datalist/ele_new_test_probe.txt',
+                        'debug':'./datalist/debug_ele_train.txt'}
 
     data_dirs = {
             'tiger_ori':'/home/yinyu/Thesis/data/tiger/test_original',
@@ -249,6 +249,10 @@ if __name__ == '__main__':
         model_structure = tiger_cnn5_v1(nclasses, linear_num=opt.linear_num, circle=True,use_posture=use_posture,dve=opt.joint,smallscale = not opt.ori_stride)
     elif name == 'seresnet_dve_1':
         model_structure = seresnet_dve_1(nclasses, 0.5, 1, circle =True , linear_num=opt.linear_num,dve_dim=64,use_posture=use_posture)
+    elif name == 'seresnet_dve_1_5':
+        model_structure = seresnet_dve_1_5(nclasses, 0.5, 1, circle =True , linear_num=opt.linear_num,dve_dim=64,use_posture=use_posture)
+    elif name == 'seresnet_dve_2':
+        model_structure = seresnet_dve_2(nclasses, 0.5, 1, circle =True , linear_num=opt.linear_num,dve_dim=64,use_posture=use_posture)
     else:
         print('unsupported model'+name)
         exit()
@@ -295,7 +299,7 @@ if __name__ == '__main__':
     
     metric['opt'] = opt_dic
     result_metric = open('./result/'+res_name,'w')
-    json.dump(metric, open('./result/'+res_name[:-3]+'json','w'))
+    #json.dump(metric, open('./result/'+res_name[:-3]+'json','w'))
     
     metric_str = "\n".join([k+': '+str(v) for k,v in metric.items()])
     result_metric.write(metric_str)

@@ -1,0 +1,44 @@
+## DataSet
+[2019.8.1]
+
+* mytrain.txt: official train-set.
+
+
+* test.txt: official test-set, non-labeled.
+
+### train.txt  
+the image path is relative path.
+
+| image_path | class_name | left(0)/right(1)|
+| :--------: | :--------: | :-------------: |
+| train/0/000384.jpg | 0 | 0 |
+| train/0/000584.jpg | 0 | 0 |
+| ... | ... | ... |
+
+### gallery.txt
+the image path is relative path.
+
+| image_path | class_name |
+| :--------: | :--------: |
+| train/0/000384.jpg | 0 |
+| train/0/000584.jpg | 0 |
+| ... | ... |
+
+### probe.txt
+the image path is relative path.
+
+| image_path | class_name |
+| :--------: | :--------: |
+| val/0/0002.jpg | 107 |
+| val/0/0003.jpg | 107 |
+| ... | ... |
+
+
+### test.txt
+the image path is relative path.
+
+| image_path |
+| :--------: |
+| test/002107.jpg |
+| test/001133.jpg |
+| ... |
