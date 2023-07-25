@@ -6,6 +6,7 @@ import torch
 import math
 from mydataset import *
 from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import Sampler
 
 IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
@@ -130,6 +131,53 @@ def load_gallery_probe_data(root, gallery_paths, probe_paths, resize_size=(324, 
     return gallery_iter, probe_iter
 
 
+class JointAllBatchSampler(Sampler):
+    '''
+    sampler used in dataloader. method __iter__ should output the indices each time it is called
+    '''
+    def __init__(self, dataset, batchsize, num_other, species, *args, **kwargs):
+        super(JointAllBatchSampler, self).__init__(dataset, *args, **kwargs)
+        self.num_other = num_other
+        self.species = species
+        self.batch_size = batchsize
+        self.dataset = dataset
+        self.labels = np.array(dataset.targets)
+        self.labels_uniq = list(set(self.labels)) 
+        #self.len = len(dataset) // self.batch_size
+        
+        self.img_dict = {}
+        filtered_indexes = [i for i, label in enumerate(self.labels) if not label.startswith('-')]
+        self.img_dict['current'] = filtered_indexes
+        self.num_cur_images = len(filtered_indexes)
+        
+        filtered_indexes = [i for i, label in enumerate(self.labels) if label.startswith('-')]
+        self.img_dict['other'] = filtered_indexes
+            
+        self.iter_num = self.num_cur_images // (self.batch_size-self.num_other)
+    
+    def __iter__(self):
+        curr_p = 0
+        other_p = 0
+        random.shuffle(self.img_dict['current'])
+        random.shuffle(self.img_dict['other'])
+        for i in range(self.iter_num):
+            idx = []
+            cur_inds = self.img_dict['current'][curr_p: curr_p + self.batch_size-self.num_other]
+            other_inds = self.img_dict['other'][other_p: other_p + self.num_other]
+            
+            for j in range(self.num_other):
+                idx.append(cur_inds[j])
+                idx.append(other_inds[j])
+            idx.extend(cur_inds[self.num_other:])
+                    
+            curr_p += self.batch_size-self.num_other
+            other_p += self.num_other
+            
+            yield idx
+
+    def __len__(self):
+        return self.iter_num 
+   
 
 
 

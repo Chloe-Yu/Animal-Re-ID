@@ -198,7 +198,7 @@ class dataset_direction(Dataset):
         return img, label, direction
     
     
-
+ 
 
 ########################################################################
 # triplet load data, return anchor,positive and negtive

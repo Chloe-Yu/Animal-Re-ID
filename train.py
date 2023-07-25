@@ -10,7 +10,7 @@ import torch.nn as nn
 import random
 import numpy as np
 import torch.optim as optim
-from dataloader import train_collate,load_direction_gallery_probe,load_triplet_direction_gallery_probe,load_dve_pair
+from dataloader import train_collate,load_direction_gallery_probe,load_triplet_direction_gallery_probe,load_dve_pair,JointAllBatchSampler
 from tps import Warper
 import time
 import sys
@@ -28,10 +28,13 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
     warm_up = 0.01 # We start from the 0.01*lrRate, to be consistent with PGCFL
     if opt.triplet_sampler:
         iter_per_epoch = dataset_sizes['train']//(opt.batch_size//3)
+    elif opt.joint_all:
+        iter_per_epoch = len(dataloaders['train'].batch_sampler)
     else:
         iter_per_epoch = dataset_sizes['train']//opt.batch_size
         
     samples_per_epoch = iter_per_epoch*opt.batch_size
+    samples_per_epoch_cur = iter_per_epoch*(opt.batch_size-opt.num_other)
     warm_iteration = iter_per_epoch*opt.warm_epoch
     
     if opt.circle:
@@ -64,11 +67,18 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
                          model.module.fix_params(is_training=True)
                     else:
                          model.module.fix_params(is_training=True)
+                num_other = opt.num_other
                    
             else:
                 model.train(False)  # Set model to evaluate mode
+                num_other = 0
                 
-            running_loss = 0.0
+            running_loss_ent = 0.0
+            running_loss_pos = 0.0
+            running_loss_circle = 0.0
+            running_loss_dve = 0.0
+            running_loss_tri = 0.0
+            
             running_corrects = 0.0
             running_corrects_posture = 0.0
             query_features = torch.FloatTensor(dataset_sizes['val'],opt.linear_num)
@@ -116,7 +126,7 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
                 optimizer.zero_grad()
                 
                 # forward
-                if opt.joint:
+                if opt.joint or opt.joint_all:
                     if phase == 'val':
                         with torch.no_grad():
                             outputs,dve_outputs = model(inputs,dve=True)
@@ -146,7 +156,7 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
                         outputs = model(inputs)
                         
                 if return_feature:
-                    logits, ff, posture_logits = outputs
+                    logits, ff, posture_logits = outputs          
                     fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
                     ff = ff.div(fnorm.expand_as(ff))
                     if phase =='val':
@@ -156,22 +166,32 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
                    
                     loss = 0.0
                     if opt.ent_cls:
-                        loss += criterion(logits, labels) 
+                        ent_loss = criterion(logits, labels)
+                        loss += ent_loss
                         _, preds = torch.max(logits.data, 1)
+                        running_loss_ent += ent_loss.item() * (now_batch_size-num_other)
                     if opt.use_posture:
-                        loss +=  criterion(posture_logits, direction)
+                        pos_loss = criterion(posture_logits, direction)
+                        loss +=  pos_loss
                         _,preds_posture = torch.max(posture_logits.data, 1)
+                        running_loss_pos += pos_loss.item() * (now_batch_size-num_other)
                     if opt.circle:
-                        loss +=  criterion_circle(*convert_label_to_similarity( ff, labels))/now_batch_size
+                        cir_loss = criterion_circle(*convert_label_to_similarity( ff, labels))
+                        running_loss_circle +=  cir_loss.item() 
+                        loss +=  cir_loss/now_batch_size
                     if opt.triplet:
                         hard_pairs = miner(ff, labels)
-                        loss +=  criterion_triplet(ff, labels, hard_pairs) #/now_batch_size
+                        trip_loss = criterion_triplet(ff, labels, hard_pairs) #/now_batch_size
+                        loss += trip_loss
+                        running_loss_tri += trip_loss.item() * now_batch_size
 
-                    if opt.joint:
+                    if opt.joint or opt.joint_all:
                         if isinstance(model, torch.nn.DataParallel):
-                            loss += dve_loss(dve_outputs,dve_warped_outputs,meta,normalize_vectors=False).mean()
+                            dloss = dve_loss(dve_outputs,dve_warped_outputs,meta,normalize_vectors=False).mean()
                         else:
-                            loss += dve_loss(dve_outputs,dve_warped_outputs,meta,normalize_vectors=False)
+                            dloss = dve_loss(dve_outputs,dve_warped_outputs,meta,normalize_vectors=False)
+                        loss += dloss
+                        running_loss_dve += dloss.item() * now_batch_size
             
                 else:
                     raise NotImplementedError
@@ -180,36 +200,8 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
                 del inputs_ori
                 torch.cuda.empty_cache()
                 
-                #  calculate dve loss on another batch of data with 3 species
-                if opt.joint_all and phase == 'train':
-                    #get data
-                    dve_inputs, _, _,dve_warps,meta = next(iter(dataloders['dve']))
-                    if use_gpu:
-                        dve_inputs = Variable(dve_inputs.cuda().detach())
-                        dve_warps = Variable(dve_warps.cuda().detach())
-                    else:
-                        dve_inputs = Variable(dve_inputs)
-                        dve_warps = Variable(dve_warps)
-                    #get feature
-                    if isinstance(model, torch.nn.DataParallel):
-                        dve_outputs = model.module.dve_forward(dve_inputs)
-                        dve_warped_outputs = model.module.dve_forward(dve_warps)
-                    else:
-                        dve_outputs = model.dve_forward(dve_inputs)
-                        dve_warped_outputs = model.dve_forward(dve_warps)
-                    #add to loss
-                    if isinstance(model, torch.nn.DataParallel):
-                        loss += dve_loss(dve_outputs,dve_warped_outputs,meta,normalize_vectors=False).mean()
-                    else:
-                        loss += dve_loss(dve_outputs,dve_warped_outputs,meta,normalize_vectors=False)
-
-                    del dve_outputs
-                    del dve_warped_outputs
-                    del dve_inputs
-                    del dve_warps
-                    torch.cuda.empty_cache()
                     
-                                    # backward + optimize only if in training phase
+                # backward + optimize only if in training phase
                 
                 if epoch<opt.warm_epoch and phase == 'train': 
                     warm_up = min(1.0, warm_up + 0.99 / warm_iteration)# changed from 0.9 to 0.99 to be consistent with PGCFL
@@ -219,11 +211,6 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
                     loss.backward()
                     optimizer.step()
                     
-                if int(version[0])>0 or int(version[2]) > 3: # for the new version like 0.4.0, 0.5.0 and 1.0.0
-                    running_loss += loss.item() * now_batch_size
-                else :  # for the old version like 0.3.0 and 0.3.1
-                    running_loss += loss.data[0] * now_batch_size
-                
                 if opt.ent_cls:
                     running_corrects += float(torch.sum(preds == labels.data))
                 if opt.use_posture:
@@ -231,13 +218,22 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
                 batch_i+=now_batch_size
                 
             if phase == 'train':
-                epoch_loss = running_loss / samples_per_epoch
+                epoch_ent_loss = running_loss_ent/samples_per_epoch_cur
+                epoch_pos_loss = running_loss_pos/samples_per_epoch_cur
+                epoch_cir_loss = running_loss_circle/samples_per_epoch
+                epoch_dve_loss = running_loss_dve/samples_per_epoch
+                epoch_tri_loss = running_loss_tri/samples_per_epoch
+                
                 if opt.ent_cls:
-                    epoch_acc = running_corrects / samples_per_epoch
+                    epoch_acc = running_corrects / samples_per_epoch_cur
                 if opt.use_posture:
-                    epoch_acc_posture = running_corrects_posture / samples_per_epoch
+                    epoch_acc_posture = running_corrects_posture / samples_per_epoch_cur
             else:
-                epoch_loss = running_loss / dataset_sizes[phase]
+                epoch_ent_loss = running_loss_ent/dataset_sizes[phase]
+                epoch_pos_loss = running_loss_pos/dataset_sizes[phase]
+                epoch_cir_loss = running_loss_circle/dataset_sizes[phase]
+                epoch_dve_loss = running_loss_dve/dataset_sizes[phase]
+                epoch_tri_loss = running_loss_tri/dataset_sizes[phase]
                 if opt.ent_cls:
                     epoch_acc = running_corrects / dataset_sizes[phase]
                 if opt.use_posture:
@@ -259,15 +255,37 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
                 
                 if epoch in [99,199,229,259,289,309]:
                     save_network(model,epoch,name)
+                    
                 
-                writer.add_scalar('val_loss',epoch_loss, epoch)
+                
+                
+                if opt.ent_cls:
+                    writer.add_scalar('val_ent_loss',epoch_ent_loss, epoch)
+                if opt.use_posture:
+                    writer.add_scalar('val_posture_loss',epoch_pos_loss, epoch)
+                if opt.circle:
+                    writer.add_scalar('val_circle_loss',epoch_cir_loss, epoch)
+                if opt.triplet:
+                    writer.add_scalar('val_triplet_loss',epoch_tri_loss, epoch)
+                if opt.joint or opt.joint_all:
+                    writer.add_scalar('val_dve_loss',epoch_dve_loss, epoch)
                 if opt.ent_cls:
                     writer.add_scalar('val_acc',epoch_acc, epoch)
                 if opt.use_posture:
                     writer.add_scalar('val_acc_posture',epoch_acc_posture, epoch)
             if phase == 'train':
                 scheduler.step()
-                writer.add_scalar('train_loss',epoch_loss, epoch)
+                if opt.ent_cls:
+                    writer.add_scalar('train_ent_loss',epoch_ent_loss, epoch)
+                if opt.use_posture:
+                    writer.add_scalar('train_posture_loss',epoch_pos_loss, epoch)
+                if opt.circle:
+                    writer.add_scalar('train_circle_loss',epoch_cir_loss, epoch)
+                if opt.triplet:
+                    writer.add_scalar('train_triplet_loss',epoch_tri_loss, epoch)
+                if opt.joint or opt.joint_all:
+                    writer.add_scalar('train_dve_loss',epoch_dve_loss, epoch)
+                
                 if opt.ent_cls:
                     writer.add_scalar('train_acc',epoch_acc, epoch)
                 if opt.use_posture:
@@ -283,6 +301,8 @@ def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,write
     
 
 if __name__ =='__main__':
+    
+    assert int(version[0])>0 or int(version[2]) > 3 # for the new version like 0.4.0, 0.5.0 and 1.0.0
     parser = argparse.ArgumentParser()
     parser.add_argument('-d','--device',default='0,1', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
     parser.add_argument('--name',default='ft_ResNet50', type=str, help='output model name')
@@ -296,6 +316,7 @@ if __name__ =='__main__':
     # data
     parser.add_argument("--data_type",required=True, default = 'yak',type=str)
     parser.add_argument('--batch_size', default=32, type=int, help='batchsize')
+    parser.add_argument('--num_other', default=0, type=int, help='number of images of other species in a batch')
     parser.add_argument('--triplet_sampler', action='store_true', help='making sure training batch has enough pos and neg.' )
     parser.add_argument('--use_posture', action='store_true', help='use the posture data for supervision' )
     # optimizer
@@ -363,7 +384,10 @@ if __name__ =='__main__':
     train_path_dic = {'tiger':'./datalist/mytrain.txt',
                       'yak':'./datalist/yak_mytrain_aligned.txt',
                       'elephant':'./datalist/ele_train.txt',
-                      'all':'./datalist/all_train_aligned.txt'
+                      'all':'./datalist/all_train_aligned.txt',
+                      'tiger_all':'./datalist/tiger_train_all.txt',
+                      'yak_all':'./datalist/yak_train_all.txt',
+                      'elephant_all':'./datalist/elephant_train_all.txt',
                       }
 
     probe_path_dic = {'tiger':'./datalist/myval.txt',
@@ -373,13 +397,14 @@ if __name__ =='__main__':
                         }
     root = '/home/yinyu/Thesis/data/Animal-Seg-V3/'
 
-    
-    train_paths = [train_path_dic[opt.data_type], ]
+    str_all = 'all' if opt.joint_all else ''
+    train_paths = [train_path_dic[opt.data_type+str_all], ]
     probe_paths = [probe_path_dic[opt.data_type], ]
     
     
     
     if opt.triplet_sampler:#classic triplet sampling
+        #DOES NOT support joint all with all species for now.
         train_data, val_data, num_classes = load_triplet_direction_gallery_probe(
             root=root,
             train_paths=train_paths,
@@ -403,41 +428,41 @@ if __name__ =='__main__':
     dataset_sizes = {'train': len(train_data),'val': len(val_data) }
     dict_nclasses = {'yak':121,'tiger':107,'elephant':337,'all':565}
     numClasses = dict_nclasses[opt.data_type]
-    assert num_classes == numClasses
+    if opt.joint_all:
+        assert num_classes == 565
+    else:
+        assert num_classes == numClasses
+    
     
     image_datasets={'train':train_data,'val':val_data}
-    print(num_classes)
-    dataloaders = {'train': DataLoader(image_datasets['train'], batch_size=opt.batch_size, collate_fn=collate_fn,
-                                                shuffle=True, num_workers=2, pin_memory=True,
-                                                prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
-                 ,'val': DataLoader(image_datasets['val'], batch_size=opt.batch_size, collate_fn=torch.utils.data.dataloader.default_collate,
-                                                shuffle=True, num_workers=2, pin_memory=True,
-                                                prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
-                }
     
-    
-    # extra dataloder for traing dve with all data
     if opt.joint_all:
-        dve_train_data= load_dve_pair(
-            root=root,
-            train_paths=[train_path_dic['all']],
-            signal=' ',
-            input_size=(h,w),
-            warper=Warper(h,w)
-        )
-        dataloaders['dve'] = DataLoader(dve_train_data, batch_size=10, collate_fn=collate_fn,
-                                shuffle=True, num_workers=2, pin_memory=True,
-                                prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
+        assert opt.datatype != 'all' # this is for training re-id with only one species,please use --joint instead
+        dataloaders={'train':DataLoader(image_datasets['train'],
+                                        batch_sampler = JointAllBatchSampler(image_datasets['train'],opt.batch_size,
+                                                                             opt.num_other,opt.datatype),num_workers=2),
+                    'val': DataLoader(image_datasets['val'], batch_size=opt.batch_size, collate_fn=torch.utils.data.dataloader.default_collate,
+                                                    shuffle=True, num_workers=2, pin_memory=True,
+                                                    prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
+                    }
+        
 
-
+    else:
+        dataloaders = {'train': DataLoader(image_datasets['train'], batch_size=opt.batch_size, collate_fn=collate_fn,
+                                                    shuffle=True, num_workers=2, pin_memory=True,
+                                                    prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
+                    ,'val': DataLoader(image_datasets['val'], batch_size=opt.batch_size, collate_fn=torch.utils.data.dataloader.default_collate,
+                                                    shuffle=True, num_workers=2, pin_memory=True,
+                                                    prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
+                    }
+  
+        
     since = time.time()
     if opt.joint:
         inputs, classes, directions, _,_ = next(iter(dataloaders['train']))
     else:
         inputs, classes, directions = next(iter(dataloaders['train']))
         
-    if opt.joint_all:
-        inputs, _, _, inputs2,metas = next(iter(dataloaders['dve']))
     print(time.time()-since)
     
     
@@ -492,8 +517,9 @@ if __name__ =='__main__':
     exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer_ft, step_size=opt.total_epoch*2//3, gamma=0.1)
     
     if opt.label_smoothing:
-        criterion = LabelSmoothingCrossEntropy(smoothing=0.1)
+        criterion = LabelSmoothingCrossEntropy(smoothing=0.1,joint_all=opt.joint_all,num_other=opt.num_other)
     else:
+        # not implemented to use with --joint_all
         criterion = nn.CrossEntropyLoss()
         
     
