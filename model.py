@@ -455,21 +455,23 @@ class tiger_cnn5_64(tiger_cnn5_512):
 # loading pretrained model on dve: dve=True, model_path=PRETRAINED_MODEL_PATH
 ##################################
 class tiger_cnn5_v1(nn.Module):
-    def __init__(self, class_num,stride=1,droprate=0.5,linear_num=512,circle=True,use_posture=True,dve=False,smallscale=True):
+    def __init__(self, class_num,stride=1,droprate=0.5,linear_num=512,circle=True,use_posture=True,dve=False,stackeddve=False,smallscale=True):
         # dve means dve feature is needed whether for method1 or joint training
         super(tiger_cnn5_v1, self).__init__()
         self.dve = dve
-        if dve:
-            self.model = tiger_cnn5_64(stride=1,smallscale=smallscale)
-            
-            # if model_path is not None:
-            #     checkpoint = torch.load(model_path,map_location=torch.device('cpu'))
-            #     checkpoint['state_dict'] = {k[7:]:v for k,v in checkpoint['state_dict'].items() }
-            #     self.model.load_state_dict(checkpoint['state_dict'])
-            #     print('successfully loaded dve cnn5')
-        else:
-            self.model = tiger_cnn5_512(stride,smallscale=smallscale)
+        self.stacked = stackeddve
+        
+        self.model = tiger_cnn5_512(stride,smallscale=smallscale)
         self.model.backbone.last_linear = nn.Sequential()
+        
+        if dve:
+            num_dim = 3584 if stackeddve else 512
+            self.last_conv = nn.Sequential(
+            nn.Conv2d(num_dim, 64, 1, 1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True)
+            )
+            _weight_init(self.last_conv)
         
         self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle, use_posture=use_posture)
         
@@ -478,16 +480,22 @@ class tiger_cnn5_v1(nn.Module):
         # backbone
         x = self.model.backbone.layer0(x)
         x = self.model.backbone.layer1(x)
-        x = self.model.backbone.layer2(x)
+        x_l2 = self.model.backbone.layer2(x)
         
-        if dve:
+        if dve and not self.stacked:
             assert self.dve == True
-            dve_f = self.model.last_conv(x)
+            dve_f = self.last_conv(x_l2)
             
-        x = self.model.backbone.layer3(x)
-        x = self.model.backbone.layer4(x)
+        x_l3 = self.model.backbone.layer3(x_l2)
+        x_l4 = self.model.backbone.layer4(x_l3)
+        
+        if dve and self.stacked:
+            up_xl3 = F.interpolate(x_l3, size=x_l2.size()[2:], mode='bilinear', align_corners=True)
+            up_x14 = F.interpolate(x_l4, size=x_l2.size()[2:], mode='bilinear', align_corners=True)
+            x_stacked = torch.cat([x_l2,up_xl3,up_x14],dim=1)
+            dve_f = self.last_conv(x_stacked)
 
-        x = torch.mean(torch.mean(x, dim=2), dim=2)
+        x = torch.mean(torch.mean(x_l4, dim=2), dim=2)
         x = self.classifier(x)
 
         if dve:
@@ -500,11 +508,19 @@ class tiger_cnn5_v1(nn.Module):
         assert self.dve==True
         x = self.model.backbone.layer0(x)
         x = self.model.backbone.layer1(x)
-        x = self.model.backbone.layer2(x)
-        dve_f = self.model.last_conv(x)
+        x_l2 = self.model.backbone.layer2(x)
+        if not self.stacked:
+            dve_f = self.last_conv(x_l2)
+        else:
+            x_l3 = self.model.backbone.layer3(x_l2)
+            x_l4 = self.model.backbone.layer4(x_l3)
+            up_xl3 = F.interpolate(x_l3, size=x_l2.size()[2:], mode='bilinear', align_corners=True)
+            up_x14 = F.interpolate(x_l4, size=x_l2.size()[2:], mode='bilinear', align_corners=True)
+            x_stacked = torch.cat([x_l2,up_xl3,up_x14],dim=1)
+            dve_f = self.last_conv(x_stacked)
         
         return dve_f
-    
+
     def eval_forward(self,x):
         x = self.model.backbone.layer0(x)
         x = self.model.backbone.layer1(x)
@@ -608,6 +624,7 @@ class seresnet_dve_1(nn.Module):
         for p in self.get_base_params():
             p.requires_grad = is_training
 
+#working better than 1 & 1_2
 class seresnet_dve_1_5(nn.Module):
 
     def __init__(self, class_num, droprate=0.5, stride=1, circle=True, linear_num=512,dve_dim=64,use_posture=True):
@@ -771,7 +788,7 @@ class ft_net_64(nn.Module):
 if __name__ == '__main__':
     x = Variable(torch.randn(2, 3, 224, 224))
     f_dve = Variable(torch.randn(2, 64, 56, 56))
-    #model = tiger_cnn5_v1(101,dve=True)
-    model = seresnet_dve_2(101)
-    out = model(x,f_dve)
-    print(out[0].shape)
+    model = tiger_cnn5_v1(101,dve=True,stackeddve=True)
+    #model = seresnet_dve_2(101)
+    out = model(x,True)
+    print(out[0])

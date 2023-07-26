@@ -309,6 +309,7 @@ if __name__ =='__main__':
     parser.add_argument('--name',default='ft_ResNet50', type=str, help='output model name')
     parser.add_argument("-m", "--model_path", required=False, default=None)
     parser.add_argument('--joint', action='store_true', help='jointly training dve and re-id' )
+    parser.add_argument('--stacked',action='store_true', help='stack last 3 layer of backbone to train with dve' )
     parser.add_argument('--joint_all', action='store_true', help='jointly training dve(3 species) and re-id' )
     parser.add_argument('--ori_dim', action='store_true', help='use original input dimension' )
     parser.add_argument('--ori_stride', action='store_true', help='no modification to layer 2 of se-resnet' )
@@ -474,7 +475,8 @@ if __name__ =='__main__':
     return_feature = True # for our re-id purpose, we always need feature
     
     if opt.use_cnn5_v1:
-        model = tiger_cnn5_v1(numClasses,stride = opt.stride,linear_num=opt.linear_num,circle=return_feature,use_posture=opt.use_posture,dve=opt.joint or opt.joint_all,smallscale=not opt.ori_stride)
+        model = tiger_cnn5_v1(numClasses,stride = opt.stride,linear_num=opt.linear_num,circle=return_feature,use_posture=opt.use_posture
+                              ,dve=opt.joint or opt.joint_all,stackeddve=opt.stacked, smallscale=not opt.ori_stride)
     elif opt.use_swin:
         model = ft_net_swin(numClasses, opt.droprate, return_feature = return_feature, linear_num=opt.linear_num, use_posture=opt.use_posture)
     elif opt.way1_dve:
