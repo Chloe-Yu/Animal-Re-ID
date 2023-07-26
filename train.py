@@ -397,7 +397,7 @@ if __name__ =='__main__':
                         'elephant':'./datalist/ele_val.txt',
                         'all':'./datalist/all_val_aligned.txt'
                         }
-    root = '/home/yinyu/Thesis/data/Animal-Seg-V3/'
+    root = './data/Animal-Seg-V3/'
 
     if opt.joint_all:
         train_paths = [train_path_dic[opt.data_type+'_all'], ]

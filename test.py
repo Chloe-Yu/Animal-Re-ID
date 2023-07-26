@@ -176,6 +176,7 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--resume', default=None, type=str,help='path to dve checkpoint (default: None)')
     parser.add_argument('--seed', default="0", help='random seed')
     parser.add_argument('--joint', action='store_true', help='trained joint or joint all' )
+    parser.add_argument('--stacked', action='store_true', help='stack last 3 layers of backbone for dve loss.' )
     opt = parser.parse_args()
     ###load config###
     
@@ -231,12 +232,12 @@ if __name__ == '__main__':
                         'debug':'./datalist/debug_ele_train.txt'}
 
     data_dirs = {
-            'tiger_ori':'/home/yinyu/Thesis/data/tiger/test_original',
-            'tiger_seg':'/home/yinyu/Thesis/data/tiger/tiger_test_isnet_seg',
-            'elephant_seg':'/home/yinyu/Thesis/data/ele_test_v3_seg',
-            'elephant_ori':'/home/yinyu/Thesis/data/elephant',
-            'h_yak_seg':'/home/yinyu/Thesis/data/yak_test_seg_isnet_pp',
-            'h_yak_ori':'/home/yinyu/Thesis/data/val'
+            'tiger_ori':'./data/tiger/test_original',
+            'tiger_seg':'./data/tiger/tiger_test_isnet_seg',
+            'elephant_seg':'./data/ele_test_v3_seg',
+            'elephant_ori':'./data/elephant',
+            'h_yak_seg':'./data/yak_test_seg_isnet_pp',
+            'h_yak_ori':'./data/val'
         }
     seg = '_ori' if opt.use_ori else '_seg'
     
@@ -246,7 +247,7 @@ if __name__ == '__main__':
     if name == 'ft_net_swin':
         model_structure = ft_net_swin(nclasses, linear_num=opt.linear_num, pretrained=True,img_size=[h,w], use_posture = use_posture)
     elif name == 'tiger_cnn5_v1':
-        model_structure = tiger_cnn5_v1(nclasses, linear_num=opt.linear_num, circle=True,use_posture=use_posture,dve=opt.joint,smallscale = not opt.ori_stride)
+        model_structure = tiger_cnn5_v1(nclasses, linear_num=opt.linear_num, circle=True,use_posture=use_posture,dve=opt.joint,stackeddve=opt.stacked,smallscale = not opt.ori_stride)
     elif name == 'seresnet_dve_1':
         model_structure = seresnet_dve_1(nclasses, 0.5, 1, circle =True , linear_num=opt.linear_num,dve_dim=64,use_posture=use_posture)
     elif name == 'seresnet_dve_1_5':
