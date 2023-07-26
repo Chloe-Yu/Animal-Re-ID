@@ -135,10 +135,10 @@ def filter_species(species, label):
         if label <= 106:
             return True
     elif species == 'yak':
-        if label >= 107 and label <= 227:
+        if label <=120:
             return True
     elif species == 'elephant':
-        if label >= 228:
+        if label <=336:
             return True
     else:
         raise ValueError('species not supported')

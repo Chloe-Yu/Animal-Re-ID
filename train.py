@@ -91,7 +91,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
             batch_i=0
             for _, data in enumerate(dataloaders[phase]):
                 # get the inputs
-                if opt.joint:
+                if opt.joint or opt.joint_all:
                     inputs_ori, labels, direction,warped_inputs,meta = data
                 else:
                     inputs_ori, labels, direction = data
@@ -117,11 +117,11 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     inputs = Variable(inputs.cuda().detach())
                     labels = Variable(labels.cuda().detach())
                     direction = Variable(direction.cuda().detach())
-                    if opt.joint:
+                    if opt.joint or opt.joint_all:
                         warped_inputs = Variable(warped_inputs.cuda().detach())
                 else:
                     inputs, labels, direction = Variable(inputs), Variable(labels), Variable(directions)
-                    if opt.joint:
+                    if opt.joint or opt.joint_all:
                         warped_inputs = Variable(warped_inputs)
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -306,7 +306,7 @@ if __name__ =='__main__':
     assert int(version[0])>0 or int(version[2]) > 3 # for the new version like 0.4.0, 0.5.0 and 1.0.0
     parser = argparse.ArgumentParser()
     parser.add_argument('-d','--device',default='0,1', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
-    parser.add_argument('--name',default='ft_ResNet50', type=str, help='output model name')
+    parser.add_argument('--name',default='ft_ResNet50', type=str, help='output model folder name')
     parser.add_argument("-m", "--model_path", required=False, default=None)
     parser.add_argument('--joint', action='store_true', help='jointly training dve and re-id' )
     parser.add_argument('--stacked',action='store_true', help='stack last 3 layer of backbone to train with dve' )
@@ -379,14 +379,17 @@ if __name__ =='__main__':
         
     
     warper = None
-    if opt.joint:
+    if opt.joint or opt.joint_all:
         # joint dve and reid on one species
         warper = Warper(h,w)
         
     train_path_dic = {'tiger':'./datalist/mytrain.txt',
                       'yak':'./datalist/yak_mytrain_aligned.txt',
                       'elephant':'./datalist/ele_train.txt',
-                      'all':'./datalist/all_train_aligned.txt'
+                      'all':'./datalist/all_train_aligned.txt',
+                      'tiger_all':'./datalist/all_train_aligned.txt',
+                      'yak_all':'./datalist/yak_train_all.txt',
+                      'elephant_all':'./datalist/ele_train_all.txt'
                       }
 
     probe_path_dic = {'tiger':'./datalist/myval.txt',
@@ -397,12 +400,13 @@ if __name__ =='__main__':
     root = '/home/yinyu/Thesis/data/Animal-Seg-V3/'
 
     if opt.joint_all:
-        train_paths = [train_path_dic['all'], ]
+        train_paths = [train_path_dic[opt.data_type+'_all'], ]
         probe_paths = [probe_path_dic[opt.data_type], ]
     else:
         train_paths = [train_path_dic[opt.data_type], ]
         probe_paths = [probe_path_dic[opt.data_type], ]
     
+    print(train_paths)
     
     if opt.triplet_sampler:#classic triplet sampling
         #DOES NOT support joint all with all species for now.
@@ -459,7 +463,7 @@ if __name__ =='__main__':
   
         
     since = time.time()
-    if opt.joint:
+    if opt.joint or opt.joint_all:
         inputs, classes, directions, _,_ = next(iter(dataloaders['train']))
     else:
         inputs, classes, directions = next(iter(dataloaders['train']))
