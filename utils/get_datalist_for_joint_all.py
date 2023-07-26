@@ -1,8 +1,15 @@
-with open('/home/yinyu/Thesis/animal-reid/datalist/all_train_aligned.txt','r') as f, open('/home/yinyu/Thesis/animal-reid/datalist/yak_train_all.txt','w') as train:
-    for line in f.readlines():
+with open('/home/yinyu/Thesis/animal-reid/datalist/all_val_aligned_m.txt','w') as f, open('/home/yinyu/Thesis/animal-reid/datalist/myval.txt','r') as tiger, \
+    open('/home/yinyu/Thesis/animal-reid/datalist/yak_myval_aligned.txt','r') as yak, open('/home/yinyu/Thesis/animal-reid/datalist/ele_val.txt','r') as ele:
+    for line in tiger.readlines():
         path,ent,pos = line.split(' ')
-        if int(ent)>227 or int(ent)<107:
-            ent = '-'+ent
-        train.write(f"{path} {ent} {pos}")
+        f.write(f"{path} {ent} {pos}")
+    
+    for line in yak.readlines():
+        path,ent,pos = line.split(' ')
+        f.write(f"{path} {int(ent)+107} {pos}")
+        
+    for line in ele.readlines():
+        path,ent,pos = line.split(' ')
+        f.write(f"{path} {int(ent)+228} {pos}")
         
     

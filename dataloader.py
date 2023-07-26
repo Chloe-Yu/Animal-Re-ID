@@ -130,6 +130,20 @@ def load_gallery_probe_data(root, gallery_paths, probe_paths, resize_size=(324, 
 
     return gallery_iter, probe_iter
 
+def filter_species(species, label):
+    if species == 'tiger':
+        if label <= 106:
+            return True
+    elif species == 'yak':
+        if label >= 107 and label <= 227:
+            return True
+    elif species == 'elephant':
+        if label >= 228:
+            return True
+    else:
+        raise ValueError('species not supported')
+    return False
+
 
 class JointAllBatchSampler(Sampler):
     '''
@@ -146,11 +160,11 @@ class JointAllBatchSampler(Sampler):
         #self.len = len(dataset) // self.batch_size
         
         self.img_dict = {}
-        filtered_indexes = [i for i, label in enumerate(self.labels) if not label.startswith('-')]
+        filtered_indexes = [i for i, label in enumerate(self.labels) if filter_species(self.species, label)]
         self.img_dict['current'] = filtered_indexes
         self.num_cur_images = len(filtered_indexes)
         
-        filtered_indexes = [i for i, label in enumerate(self.labels) if label.startswith('-')]
+        filtered_indexes = [i for i, label in enumerate(self.labels) if not filter_species(self.species, label)]
         self.img_dict['other'] = filtered_indexes
             
         self.iter_num = self.num_cur_images // (self.batch_size-self.num_other)

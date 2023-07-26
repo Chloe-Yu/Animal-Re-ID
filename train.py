@@ -23,9 +23,10 @@ from torch.utils.tensorboard import SummaryWriter
 from pytorch_metric_learning import losses, miners
 
 
-def train(model, criterion, optimizer, scheduler,dataloders, num_epochs=25,writer=None,way1_dve=None):
+def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writer=None,way1_dve=None):
     best_ap = 0.0
     warm_up = 0.01 # We start from the 0.01*lrRate, to be consistent with PGCFL
+    dataset_sizes = {'train': len(dataloaders['train'].dataset),'val': len(dataloaders['val'].dataset) }
     if opt.triplet_sampler:
         iter_per_epoch = dataset_sizes['train']//(opt.batch_size//3)
     elif opt.joint_all:
@@ -384,10 +385,7 @@ if __name__ =='__main__':
     train_path_dic = {'tiger':'./datalist/mytrain.txt',
                       'yak':'./datalist/yak_mytrain_aligned.txt',
                       'elephant':'./datalist/ele_train.txt',
-                      'all':'./datalist/all_train_aligned.txt',
-                      'tiger_all':'./datalist/tiger_train_all.txt',
-                      'yak_all':'./datalist/yak_train_all.txt',
-                      'elephant_all':'./datalist/elephant_train_all.txt',
+                      'all':'./datalist/all_train_aligned.txt'
                       }
 
     probe_path_dic = {'tiger':'./datalist/myval.txt',
@@ -397,10 +395,12 @@ if __name__ =='__main__':
                         }
     root = '/home/yinyu/Thesis/data/Animal-Seg-V3/'
 
-    str_all = 'all' if opt.joint_all else ''
-    train_paths = [train_path_dic[opt.data_type+str_all], ]
-    probe_paths = [probe_path_dic[opt.data_type], ]
-    
+    if opt.joint_all:
+        train_paths = [train_path_dic['all'], ]
+        probe_paths = [probe_path_dic[opt.data_type], ]
+    else:
+        train_paths = [train_path_dic[opt.data_type], ]
+        probe_paths = [probe_path_dic[opt.data_type], ]
     
     
     if opt.triplet_sampler:#classic triplet sampling
@@ -425,7 +425,7 @@ if __name__ =='__main__':
             )
         collate_fn=torch.utils.data.dataloader.default_collate
     
-    dataset_sizes = {'train': len(train_data),'val': len(val_data) }
+    
     dict_nclasses = {'yak':121,'tiger':107,'elephant':337,'all':565}
     numClasses = dict_nclasses[opt.data_type]
     if opt.joint_all:
@@ -437,10 +437,10 @@ if __name__ =='__main__':
     image_datasets={'train':train_data,'val':val_data}
     
     if opt.joint_all:
-        assert opt.datatype != 'all' # this is for training re-id with only one species,please use --joint instead
+        assert opt.data_type != 'all' # this is for training re-id with only one species,please use --joint instead
         dataloaders={'train':DataLoader(image_datasets['train'],
                                         batch_sampler = JointAllBatchSampler(image_datasets['train'],opt.batch_size,
-                                                                             opt.num_other,opt.datatype),num_workers=2),
+                                                                             opt.num_other,opt.data_type),num_workers=2),
                     'val': DataLoader(image_datasets['val'], batch_size=opt.batch_size, collate_fn=torch.utils.data.dataloader.default_collate,
                                                     shuffle=True, num_workers=2, pin_memory=True,
                                                     prefetch_factor=2, persistent_workers=True) # 8 workers may work faster

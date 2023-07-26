@@ -19,7 +19,7 @@ class LabelSmoothingCrossEntropy(nn.Module):
             positions = [i for i in range(x.size(0)) if (i%2==0) or i>=2*self.num_other]
             x = x[torch.tensor(positions).cuda()]
             target = target[torch.tensor(positions).cuda()]
-
+            
         logprobs = F.log_softmax(x, dim=-1)
         nll_loss = -logprobs.gather(dim=-1, index=target.unsqueeze(1))
         nll_loss = nll_loss.squeeze(1)
@@ -28,7 +28,8 @@ class LabelSmoothingCrossEntropy(nn.Module):
         return loss.mean()
     
 if __name__ == '__main__':
-    loss = LabelSmoothingCrossEntropy(smoothing=0.1)
-    a = Variable(torch.zeros(2, 10).cuda())
-    label = Variable(torch.ones((2,)).long().cuda())
+    loss = LabelSmoothingCrossEntropy(smoothing=0.1,joint_all=True,num_other=8)
+    a = Variable(torch.rand(32, 10))
+    print('a',a)
+    label = Variable(torch.ones((32,)).long()) 
     print(loss(a, label))
