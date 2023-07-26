@@ -1,6 +1,6 @@
 # Don't track content of these folders
 outputs/
-model/*
+model1/*
 logs/
 slurm/*
 __pycache__/
