@@ -387,7 +387,7 @@ if __name__ =='__main__':
                       'yak':'./datalist/yak_mytrain_aligned.txt',
                       'elephant':'./datalist/ele_train.txt',
                       'all':'./datalist/all_train_aligned.txt',
-                      'tiger_all':'./datalist/all_train_aligned.txt',
+                      'tiger_all':'./datalist/tiger_train_all.txt',
                       'yak_all':'./datalist/yak_train_all.txt',
                       'elephant_all':'./datalist/ele_train_all.txt'
                       }
@@ -434,7 +434,7 @@ if __name__ =='__main__':
     dict_nclasses = {'yak':121,'tiger':107,'elephant':337,'all':565}
     numClasses = dict_nclasses[opt.data_type]
     if opt.joint_all:
-        assert num_classes == 565
+        assert num_classes == numClasses+2
     else:
         assert num_classes == numClasses
     

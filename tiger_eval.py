@@ -168,7 +168,7 @@ def plain_evaluate(anno, res, phase_codename,path, **kwargs):
 annos={
     'detect':'annotations/detect_tiger02_test.json',
     'pose':'annotations/pose_tiger02_test.json',
-    'plain':'/home/yinyu/Thesis/data/tiger/atrw_anno_reid_test/gt_test_plain.json',
+    'plain':'./data/tiger/atrw_anno_reid_test/gt_test_plain.json',
     'wild':'annotations/gt_test_wild.json'}
 
 def evaluate_tiger(input_file_path, task, path=True, **kwargs):
