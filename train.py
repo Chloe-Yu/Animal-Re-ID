@@ -99,7 +99,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                 direction = direction.long()
 
                 now_batch_size,c,h,w = inputs_ori.shape
-                if now_batch_size<opt.batch_size: # skip the last batch
+                if now_batch_size<opt.batch_size and phase == 'train': # skip the last batch
                     continue
                 
                 inputs = inputs_ori
@@ -164,7 +164,17 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                         query_features[batch_i:min(batch_i+now_batch_size,dataset_sizes['val']),:] = ff.cpu()
                     else:
                         gallery_features[batch_i:min(batch_i+now_batch_size,samples_per_epoch),:] = ff.cpu()
-                   
+                    
+                    if opt.joint_all:
+                        # excluding images of other species for ent_loss and pos_loss & circle loss
+                        positions = torch.tensor([i for i in range(logits.size(0)) if (i%2==0) or i>=2*opt.num_other]).cuda()
+                        direction = direction[positions]
+                        labels = labels[positions]
+                        logits = logits[positions]
+                        posture_logits = posture_logits[positions]
+                        ff = ff[positions]
+                    
+                    
                     loss = 0.0
                     if opt.ent_cls:
                         ent_loss = criterion(logits, labels)
@@ -179,7 +189,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     if opt.circle:
                         cir_loss = criterion_circle(*convert_label_to_similarity( ff, labels))
                         running_loss_circle +=  cir_loss.item() 
-                        loss +=  cir_loss/now_batch_size
+                        loss += (opt.circle_loss_scale*cir_loss)/now_batch_size
                     if opt.triplet:
                         hard_pairs = miner(ff, labels)
                         trip_loss = criterion_triplet(ff, labels, hard_pairs) #/now_batch_size
@@ -191,7 +201,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                             dloss = dve_loss(dve_outputs,dve_warped_outputs,meta,normalize_vectors=False).mean()
                         else:
                             dloss = dve_loss(dve_outputs,dve_warped_outputs,meta,normalize_vectors=False)
-                        loss += dloss
+                        loss += opt.dve_loss_scale* dloss
                         running_loss_dve += dloss.item() * now_batch_size
             
                 else:
@@ -221,7 +231,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
             if phase == 'train':
                 epoch_ent_loss = running_loss_ent/samples_per_epoch_cur
                 epoch_pos_loss = running_loss_pos/samples_per_epoch_cur
-                epoch_cir_loss = running_loss_circle/samples_per_epoch
+                epoch_cir_loss = running_loss_circle/samples_per_epoch_cur
                 epoch_dve_loss = running_loss_dve/samples_per_epoch
                 epoch_tri_loss = running_loss_tri/samples_per_epoch
                 
@@ -342,6 +352,8 @@ if __name__ =='__main__':
     parser.add_argument('--triplet', action='store_true', help='use triplet loss' )
     parser.add_argument('--ent_cls', action='store_true', help='use Classification loss for enetity' )
     parser.add_argument('--seed', default=0, type=int, help='seed')
+    parser.add_argument('--circle_loss_scale', default=1.0, type=float, help='circle_loss_scale')
+    parser.add_argument('--dve_loss_scale', default=1.0, type=float, help='dve_loss_scale')
 
     opt = parser.parse_args()
     #initialization
@@ -446,17 +458,17 @@ if __name__ =='__main__':
         dataloaders={'train':DataLoader(image_datasets['train'],
                                         batch_sampler = JointAllBatchSampler(image_datasets['train'],opt.batch_size,
                                                                              opt.num_other,opt.data_type),num_workers=2),
-                    'val': DataLoader(image_datasets['val'], batch_size=opt.batch_size, collate_fn=torch.utils.data.dataloader.default_collate,
+                    'val': DataLoader(image_datasets['val'], batch_size=opt.batch_size, collate_fn=torch.utils.data.dataloader.default_collate,drop_last=True,
                                                     shuffle=True, num_workers=2, pin_memory=True,
                                                     prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
                     }
         
 
     else:
-        dataloaders = {'train': DataLoader(image_datasets['train'], batch_size=opt.batch_size, collate_fn=collate_fn,
+        dataloaders = {'train': DataLoader(image_datasets['train'], batch_size=opt.batch_size, collate_fn=collate_fn,drop_last=True,
                                                     shuffle=True, num_workers=2, pin_memory=True,
                                                     prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
-                    ,'val': DataLoader(image_datasets['val'], batch_size=opt.batch_size, collate_fn=torch.utils.data.dataloader.default_collate,
+                    ,'val': DataLoader(image_datasets['val'], batch_size=opt.batch_size, collate_fn=torch.utils.data.dataloader.default_collate,drop_last=True,
                                                     shuffle=True, num_workers=2, pin_memory=True,
                                                     prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
                     }
@@ -523,7 +535,7 @@ if __name__ =='__main__':
     exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer_ft, step_size=opt.total_epoch*2//3, gamma=0.1)
     
     if opt.label_smoothing:
-        criterion = LabelSmoothingCrossEntropy(smoothing=0.1,joint_all=opt.joint_all,num_other=opt.num_other)
+        criterion = LabelSmoothingCrossEntropy(smoothing=0.1)
     else:
         # not implemented to use with --joint_all
         criterion = nn.CrossEntropyLoss()
