@@ -9,7 +9,7 @@ from torchvision import transforms
 import os
 import random
 from PIL import Image
-from model import  ft_net_swin, tiger_cnn5_64,tiger_cnn5_v1,seresnet_dve_1,ft_net_64,seresnet_dve_1_5,seresnet_dve_2
+from model import  ft_net_swin, tiger_cnn5_64,tiger_cnn5_v1,seresnet_dve_1,ft_net_64,seresnet_dve_1_5,seresnet_dve_2,seresnet_dve_att
 from tiger_eval import evaluate_tiger
 import json
 import sys
@@ -254,6 +254,8 @@ if __name__ == '__main__':
         model_structure = seresnet_dve_1_5(nclasses, 0.5, 1, circle =True , linear_num=opt.linear_num,dve_dim=64,use_posture=use_posture)
     elif name == 'seresnet_dve_2':
         model_structure = seresnet_dve_2(nclasses, 0.5, 1, circle =True , linear_num=opt.linear_num,dve_dim=64,use_posture=use_posture)
+    elif name == 'seresnet_dve_att':
+        model_structure = seresnet_dve_att(nclasses, 0.5, 1, circle =True , linear_num=opt.linear_num,dve_dim=64,use_posture=use_posture)
     else:
         print('unsupported model'+name)
         exit()

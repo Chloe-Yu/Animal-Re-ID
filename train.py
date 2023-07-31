@@ -1,5 +1,5 @@
 import argparse
-from model import  ft_net_swin,seresnet_dve_1,tiger_cnn5_v1,tiger_cnn5_64,ft_net_64,seresnet_dve_2,seresnet_dve_1_5
+from model import  ft_net_swin,seresnet_dve_1,tiger_cnn5_v1,tiger_cnn5_64,ft_net_64,seresnet_dve_2,seresnet_dve_1_5,seresnet_dve_att
 from utils import fliplr,init_log,save_network
 import os
 from shutil import copyfile
@@ -319,6 +319,7 @@ if __name__ =='__main__':
     parser.add_argument('--name',default='ft_ResNet50', type=str, help='output model folder name')
     parser.add_argument("-m", "--model_path", required=False, default=None)
     parser.add_argument('--joint', action='store_true', help='jointly training dve and re-id' )
+    parser.add_argument('--joint_att', action='store_true', help='use attention while jointly trianing.' )
     parser.add_argument('--stacked',action='store_true', help='stack last 3 layer of backbone to train with dve' )
     parser.add_argument('--joint_all', action='store_true', help='jointly training dve(3 species) and re-id' )
     parser.add_argument('--ori_dim', action='store_true', help='use original input dimension' )
@@ -492,7 +493,7 @@ if __name__ =='__main__':
     
     if opt.use_cnn5_v1:
         model = tiger_cnn5_v1(numClasses,stride = opt.stride,linear_num=opt.linear_num,circle=return_feature,use_posture=opt.use_posture
-                              ,dve=opt.joint or opt.joint_all,stackeddve=opt.stacked, smallscale=not opt.ori_stride)
+                              ,dve=opt.joint or opt.joint_all,stackeddve=opt.stacked, smallscale=not opt.ori_stride,attn=opt.joint_att)
     elif opt.use_swin:
         model = ft_net_swin(numClasses, opt.droprate, return_feature = return_feature, linear_num=opt.linear_num, use_posture=opt.use_posture)
     elif opt.way1_dve:
@@ -502,6 +503,8 @@ if __name__ =='__main__':
             model = seresnet_dve_2(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num,dve_dim=64,use_posture=opt.use_posture)
         elif opt.version == '1_5':
             model = seresnet_dve_1_5(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num,dve_dim=64,use_posture=opt.use_posture)
+        elif opt.version == 'att':
+            model = seresnet_dve_att(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num,dve_dim=64,use_posture=opt.use_posture)
         else:
             sys.exit('way1 model is not specified.')
     else:

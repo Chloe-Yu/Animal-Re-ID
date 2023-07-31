@@ -455,11 +455,13 @@ class tiger_cnn5_64(tiger_cnn5_512):
 # loading pretrained model on dve: dve=True, model_path=PRETRAINED_MODEL_PATH
 ##################################
 class tiger_cnn5_v1(nn.Module):
-    def __init__(self, class_num,stride=1,droprate=0.5,linear_num=512,circle=True,use_posture=True,dve=False,stackeddve=False,smallscale=True):
+    def __init__(self, class_num,stride=1,droprate=0.5,linear_num=512,circle=True,use_posture=True,dve=False,stackeddve=False,smallscale=True, attn=False,normalize_attn=True):
         # dve means dve feature is needed whether for method1 or joint training
         super(tiger_cnn5_v1, self).__init__()
         self.dve = dve
         self.stacked = stackeddve
+        self.attn = attn
+        self.normalize_attn = normalize_attn
         
         self.model = tiger_cnn5_512(stride,smallscale=smallscale)
         self.model.backbone.last_linear = nn.Sequential()
@@ -473,6 +475,29 @@ class tiger_cnn5_v1(nn.Module):
             )
             _weight_init(self.last_conv)
         
+            if attn:
+                self.attn_layer = nn.Sequential(
+                nn.Conv2d(
+                            in_channels=64,
+                            out_channels=8,
+                            kernel_size=1,
+                            stride=1,
+                            padding=0,
+                            bias=False
+                ),#B,8,56,56
+                nn.BatchNorm2d(8),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(
+                            in_channels=8,
+                            out_channels=1,
+                            kernel_size=1,
+                            stride=1,
+                            padding=0,
+                            bias=True
+                )
+                )
+                self.attn_layer.apply(weights_init_kaiming)
+        
         self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle, use_posture=use_posture)
         
     def forward(self, x, dve = False):
@@ -485,7 +510,19 @@ class tiger_cnn5_v1(nn.Module):
         if dve and not self.stacked:
             assert self.dve == True
             dve_f = self.last_conv(x_l2)
+            if self.attn:
+                N, C, W, H = dve_f.size()
+                dve_att = self.attn_layer(dve_f)
+                if self.normalize_attn:
+                    a = F.softmax(dve_att.view(N,1,-1), dim=2).view(N,1,W,H)
+                else:
+                    a = torch.sigmoid(dve_att)
+                    
+                # reweight local feature
+                x_l2 = torch.mul(a.expand_as(x_l2), x_l2)# batch_sizexCxWxH
+                
             
+        
         x_l3 = self.model.backbone.layer3(x_l2)
         x_l4 = self.model.backbone.layer4(x_l3)
         
@@ -536,6 +573,8 @@ class tiger_cnn5_v1(nn.Module):
 
 
 
+
+
 # Define the swin_base_patch4_window7_224 Model
 # pytorch > 1.6
 class ft_net_swin(nn.Module):
@@ -569,6 +608,81 @@ class ft_net_swin(nn.Module):
             p.requires_grad = is_training
     
     
+
+class seresnet_dve_att(nn.Module):
+
+    def __init__(self, class_num, droprate=0.5, stride=1, circle=True, linear_num=512,dve_dim=64,use_posture=True,normalize_attn=True):
+        super(seresnet_dve_att, self).__init__()
+        model = seresnet50(pretrained=True)
+        if stride == 1:
+            model.layer2[0].downsample[0].stride = (1, 1)
+            model.layer2[0].conv2.stride = (1, 1)
+            model.layer4[0].downsample[0].stride = (1, 1)
+            model.layer4[0].conv2.stride = (1, 1)
+        
+        self.model = model
+        self.model.last_linear = nn.Sequential()
+        
+        self.circle = circle
+        self.attn = nn.Sequential(
+            nn.Conv2d(
+                        in_channels=dve_dim,
+                        out_channels=dve_dim//8,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=False
+            ),#B,8,56,56
+            nn.BatchNorm2d(dve_dim//8),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(
+                        in_channels=dve_dim//8,
+                        out_channels=1,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=True
+            )
+        )
+        self.attn.apply(weights_init_kaiming)
+        self.normalize_attn = normalize_attn
+           
+        self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle, use_posture=use_posture)
+   
+        
+    def forward(self, x, f_dev):
+        
+        x = self.model.layer0(x)
+        x = self.model.layer1(x)
+        x = self.model.layer2(x)#B,512,56,56
+        
+        N, C, W, H = f_dev.size()
+        dve_att = self.attn(f_dev)
+        if self.normalize_attn:
+            a = F.softmax(dve_att.view(N,1,-1), dim=2).view(N,1,W,H)
+        else:
+            a = torch.sigmoid(dve_att)
+            
+        # reweight local feature
+        x = torch.mul(a.expand_as(x), x)# batch_sizexCxWxH
+        
+        x = self.model.layer3(x)
+        x = self.model.layer4(x)
+        
+        x = torch.mean(torch.mean(x, dim=2), dim=2)
+        x = self.classifier(x)
+     
+        return x
+    
+    def get_base_params(self):
+        return self.model.parameters()
+
+    def fix_params(self, is_training=True):
+        for p in self.get_base_params():
+            p.requires_grad = is_training
+
+
+
 class seresnet_dve_1(nn.Module):
 
     def __init__(self, class_num, droprate=0.5, stride=1, circle=True, linear_num=512,dve_dim=64,use_posture=True):
@@ -788,7 +902,7 @@ class ft_net_64(nn.Module):
 if __name__ == '__main__':
     x = Variable(torch.randn(2, 3, 224, 224))
     f_dve = Variable(torch.randn(2, 64, 56, 56))
-    model = tiger_cnn5_v1(101,dve=True,stackeddve=True)
-    #model = seresnet_dve_2(101)
-    out = model(x,True)
+   # model = tiger_cnn5_v1(101,dve=True,stackeddve=True)
+    model = seresnet_dve_att(101)
+    out = model(x,f_dve)
     print(out[0])

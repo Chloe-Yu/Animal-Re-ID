@@ -50,10 +50,14 @@
 # /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt yak --gpu_ids 0  -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_416/net_last.pth
 # /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt elephant --gpu_ids 0 -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_416/net_last.pth
 
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt yak --gpu_ids 0 --joint -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_dve_joint_all_scaled/net_last.pth
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt tiger --gpu_ids 0 --joint  -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_dve_joint_all_scaled/net_last.pth
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt elephant --gpu_ids 0 --joint -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_all_scaled/net_last.pth
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt yak --gpu_ids 0 --joint -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_dve_joint_all_scaled/net_last.pth
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt tiger --gpu_ids 0 --joint  -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_dve_joint_all_scaled/net_last.pth
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt elephant --gpu_ids 0 --joint -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_all_scaled/net_last.pth
 
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt yak --gpu_ids 0 --joint -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_dve_joint_all_scaled2/net_last.pth
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt tiger --gpu_ids 0 --joint  -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_dve_joint_all_scaled2/net_last.pth
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt elephant --gpu_ids 0 --joint -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_all_scaled2/net_last.pth
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt yak --gpu_ids 0 --joint -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_dve_joint_all_scaled2/net_last.pth
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt tiger --gpu_ids 0 --joint  -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_dve_joint_all_scaled2/net_last.pth
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt elephant --gpu_ids 0 --joint -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_all_scaled2/net_last.pth
+
+/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name seresnet_dve_att  -d all -mt yak --gpu_ids 0,1 -m /home/yinyu/Thesis/animal-reid/model/seresnet_dve_att_circle_posture_segv3_ls_yak/net_last.pth --way1_dve -r /home/yinyu/Thesis/resnet-64-epoch120.pth 
+/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name seresnet_dve_att  -d all -mt elephant --gpu_ids 0,1 -m /home/yinyu/Thesis/animal-reid/model/seresnet_dve_att_circle_posture_segv3_ls_ele/net_last.pth --way1_dve -r /home/yinyu/Thesis/resnet-64-epoch120.pth 
+/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name seresnet_dve_att  -d all -mt tiger --gpu_ids 0,1 -m /home/yinyu/Thesis/animal-reid/model/seresnet_dve_att_circle_posture_segv3_ls_tiger/net_last.pth --way1_dve -r /home/yinyu/Thesis/resnet-64-epoch120.pth 
