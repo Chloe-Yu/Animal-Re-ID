@@ -19,22 +19,20 @@ from metric import evaluate_CMC
 sys.path.insert(0,os.path.join(os.path.dirname(__file__), '../'))
 
 
-def extract_feature(model,dataloaders,dve=None):
+def extract_feature(model,dataloaders,linear_num,batchsize,concat,dve=None):
     count = 0
     names = []
 
-
+    linear_num = linear_num*2 if concat else linear_num
     for iter, data in enumerate(dataloaders):
         img,image_names, label = data
 
         n, c, h, w = img.size()
         count += n
-        print(count)
         
-        linear_num = opt.linear_num*2 if opt.concat else opt.linear_num
         ff = torch.FloatTensor(n,linear_num).zero_().cuda()
 
-        if opt.concat:
+        if concat:
             input_img = Variable(img.cuda())
             flip_inputs = fliplr(img)
             flip_inputs = Variable(flip_inputs.cuda())
@@ -78,8 +76,8 @@ def extract_feature(model,dataloaders,dve=None):
             features = torch.FloatTensor( len(dataloaders.dataset), ff.shape[1])
             labels = torch.LongTensor(len(dataloaders.dataset))
             
-        start = iter*opt.batchsize
-        end = min( (iter+1)*opt.batchsize, len(dataloaders.dataset))
+        start = iter*batchsize
+        end = min( (iter+1)*batchsize, len(dataloaders.dataset))
 
         features[ start:end, :] = ff
         labels[start:end] = label
@@ -90,7 +88,32 @@ def extract_feature(model,dataloaders,dve=None):
 
 
 
-def eval_on_one(model,dve,dataset_type):
+def eval_on_one(model,dve,dataset_type,data_transforms,linear_num,concat,seg=True,batch_size=32):
+    gallery_path_dic = {'tiger':'./datalist/mytest.txt',
+                    's_yak':'./datalist/yak_gallery_simple.txt',
+                    'h_yak':'./datalist/yak_gallery_hard.txt',
+                    'yak':'./datalist/yak_gallery_hard.txt',
+                    'elephant':'./datalist/ele_new_test_gallery.txt',
+                    'debug':'./datalist/debug_ele_train.txt'}
+    probe_path_dic = {'tiger':'./datalist/mytest.txt',
+                        's_yak':'./datalist/yak_probe_simple.txt',
+                        'h_yak':'./datalist/yak_probe_hard.txt',
+                        'yak':'./datalist/yak_probe_hard.txt',
+                        'elephant':'./datalist/ele_new_test_probe.txt',
+                        'debug':'./datalist/debug_ele_train.txt'}
+    
+    data_dirs = {
+            'tiger_ori':'./data/tiger/test_original',
+            'tiger_seg':'./data/tiger/tiger_test_isnet_seg',
+            'elephant_seg':'./data/ele_test_v3_seg',
+            'elephant_ori':'./data/elephant',
+            'h_yak_seg':'./data/yak_test_seg_isnet_pp',
+            'yak_seg':'./data/yak_test_seg_isnet_pp',
+            'h_yak_ori':'./data/val',
+            'yak_ori':'./data/val'
+        }
+
+    
     gallery_paths = [gallery_path_dic[dataset_type], ]
     probe_paths = [probe_path_dic[dataset_type], ]
     root = data_dirs[dataset_type+seg]
@@ -102,15 +125,15 @@ def eval_on_one(model,dve,dataset_type):
         root=root,
         gallery_paths=gallery_paths,
         probe_paths=probe_paths,
-        batch_size=opt.batchsize,
+        batch_size=batch_size,
         num_workers=2,
         data_transforms=data_transforms
     )
     dataloaders = {'gallery':gallery_iter,'query':probe_iter}
     
     with torch.no_grad():
-        gallery_feature,gallery_label,gallery_names = extract_feature(model,dataloaders['gallery'],dve)
-        query_feature, query_label,query_names = extract_feature(model,dataloaders['query'],dve)
+        gallery_feature,gallery_label,gallery_names = extract_feature(model,dataloaders['gallery'],linear_num,batch_size,concat,dve)
+        query_feature, query_label,query_names = extract_feature(model,dataloaders['query'],linear_num,batch_size,concat,dve)
     
     
     CMC,ap,q_g_dist = evaluate_CMC(query_feature, query_label, gallery_feature, gallery_label,remove_closest,'cos',True)
@@ -149,9 +172,11 @@ def evaluate(model,dve,opt):
     metrics = {}
     if opt.dataset_type == 'all':
         for dataset_type in ['tiger','h_yak','elephant']:   
-            metrics[dataset_type]=eval_on_one(model,dve,dataset_type)
+            metrics[dataset_type]=eval_on_one(model,dve,dataset_type,data_transforms,opt.linear_num,
+                                              opt.concat,seg,opt.batchsize)
     else:
-        metrics[opt.dataset_type]=eval_on_one(model,dve,opt.dataset_type)
+        metrics[opt.dataset_type]=eval_on_one(model,dve,opt.dataset_type,data_transforms,opt.linear_num,
+                                              opt.concat,seg,opt.batchsize)
     return metrics
         
     
@@ -223,11 +248,13 @@ if __name__ == '__main__':
     gallery_path_dic = {'tiger':'./datalist/mytest.txt',
                     's_yak':'./datalist/yak_gallery_simple.txt',
                     'h_yak':'./datalist/yak_gallery_hard.txt',
+                    'yak':'./datalist/yak_gallery_hard.txt',
                     'elephant':'./datalist/ele_new_test_gallery.txt',
                     'debug':'./datalist/debug_ele_train.txt'}
     probe_path_dic = {'tiger':'./datalist/mytest.txt',
                         's_yak':'./datalist/yak_probe_simple.txt',
                         'h_yak':'./datalist/yak_probe_hard.txt',
+                        'yak':'./datalist/yak_probe_hard.txt',
                         'elephant':'./datalist/ele_new_test_probe.txt',
                         'debug':'./datalist/debug_ele_train.txt'}
 

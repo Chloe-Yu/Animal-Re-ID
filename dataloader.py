@@ -7,6 +7,8 @@ import math
 from mydataset import *
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import Sampler
+from tps import Warper
+import matplotlib.pyplot as plt
 
 IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
@@ -331,6 +333,59 @@ def train_collate(batch):
     return images, labels, directs
 
 
+if __name__ == '__main__':
+    h, w = 224, 224
+    warper = Warper(h,w)
+    train_path_dic = {'tiger':'./datalist/mytrain.txt',
+                      'yak':'./datalist/yak_mytrain_aligned.txt',
+                      'elephant':'./datalist/ele_train.txt',
+                      'all':'./datalist/all_train_aligned.txt',
+                      'tiger_all':'./datalist/tiger_train_all.txt',
+                      'yak_all':'./datalist/yak_train_all.txt',
+                      'elephant_all':'./datalist/ele_train_all.txt'
+                      }
+    probe_path_dic = {'tiger':'./datalist/myval.txt',
+                        'yak':'./datalist/yak_myval_aligned.txt',
+                        'elephant':'./datalist/ele_val.txt',
+                        'all':'./datalist/all_val_aligned.txt'
+                        }
+
+    root = './data/Animal-Seg-V3/'
+    train_paths1 = [train_path_dic['tiger_all'], ]
+    train_paths2 = [train_path_dic['tiger'],]
+    probe_paths = [probe_path_dic['tiger'], ]
+    probe_path_dic = {'tiger':'./datalist/myval.txt',
+                        'yak':'./datalist/yak_myval_aligned.txt',
+                        'elephant':'./datalist/ele_val.txt',
+                        'all':'./datalist/all_val_aligned.txt'
+                        }
+    
+    train_data1, val_data, num_classes= load_direction_gallery_probe(
+        root=root,
+        train_paths=train_paths1,
+        probe_paths=probe_paths,
+        signal=' ',
+        input_size=(h,w),
+        warper=warper
+    )
+    
+    train_data2, val_data, num_classes= load_direction_gallery_probe(
+        root=root,
+        train_paths=train_paths2,
+        probe_paths=probe_paths,
+        signal=' ',
+        input_size=(h,w),
+        warper=None
+    )
+    
+    image_dve = train_data1[0][0]
+    image = train_data2[0][0]
+    print(image_dve.shape,image_dve)
+    print(image.shape,image)
+    plt.figure()
+    #plt.imshow(image_dve.permute(1,2,0))
+    plt.imshow(image.permute(1,2,0))
+    plt.savefig('plot1.png') 
   
     
     

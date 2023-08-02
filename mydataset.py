@@ -154,13 +154,18 @@ class dataset_direction(Dataset):
         img = img.convert('RGB')
         label = self.items[index][1]
         direction = self.items[index][2]
+        
+        if self._initial_transform is not None:
+            img = self._initial_transform(img)
+        if self._transform is not None:
+            reid_img = self._transform(img)
     
         
         if self.warper is not None:
             if self.warper.return_pairs:
                 #hard coded dimension for dve training for now.
-                im1 = self._initial_transform(img)
-                im1 = TF.to_tensor(im1) * 255
+                
+                im1 = TF.to_tensor(img) * 255
                 
                 im1, im2, flow, grid, kp1, kp2 = self.warper(im1, keypts=None, crop=0)
 
@@ -185,17 +190,11 @@ class dataset_direction(Dataset):
                     #'im2': im2,
                     #'index': index
                 }
-                return  im1,label,direction,im2,meta
+                return  reid_img,label,direction,im1,im2,meta
             else:
                 raise NotImplementedError
-        
-        if self._initial_transform is not None:
-            img = self._initial_transform(img)
-        if self._transform is not None:
-            img = self._transform(img)
-            
-        
-        return img, label, direction
+    
+        return reid_img,img, label, direction
     
     
  
@@ -307,8 +306,8 @@ class dataset_direction_triplet(Dataset):
                 
                 return [anchor_image, positive_image, negative_image], \
                        [anchor_label, anchor_label, negative_label], \
-                       [anchor_direct, positive_direct, negative_direct]\
-                       [anchor_warp,positive_warp,negative_warp]\
+                       [anchor_direct, positive_direct, negative_direct],\
+                       [anchor_warp,positive_warp,negative_warp],\
                        [anchor_meta,positive_meta,negative_meta]
             else:
                 raise NotImplementedError

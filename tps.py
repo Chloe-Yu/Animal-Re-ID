@@ -2,7 +2,6 @@ import torch
 import torch.nn.functional as F
 import math
 
-
 def tps_grid(H, W):
     xi = torch.linspace(-1, 1, W)
     yi = torch.linspace(-1, 1, H)

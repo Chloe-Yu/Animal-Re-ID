@@ -475,31 +475,17 @@ class tiger_cnn5_v1(nn.Module):
         
         self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle, use_posture=use_posture)
         
-    def forward(self, x, dve = False):
+    def forward(self, x):
         #dve means output dve branch feature
         # backbone
         x = self.model.backbone.layer0(x)
         x = self.model.backbone.layer1(x)
         x_l2 = self.model.backbone.layer2(x)
-        
-        if dve and not self.stacked:
-            assert self.dve == True
-            dve_f = self.last_conv(x_l2)
-            
         x_l3 = self.model.backbone.layer3(x_l2)
         x_l4 = self.model.backbone.layer4(x_l3)
         
-        if dve and self.stacked:
-            up_xl3 = F.interpolate(x_l3, size=x_l2.size()[2:], mode='bilinear', align_corners=True)
-            up_x14 = F.interpolate(x_l4, size=x_l2.size()[2:], mode='bilinear', align_corners=True)
-            x_stacked = torch.cat([x_l2,up_xl3,up_x14],dim=1)
-            dve_f = self.last_conv(x_stacked)
-
         x = torch.mean(torch.mean(x_l4, dim=2), dim=2)
         x = self.classifier(x)
-
-        if dve:
-            return x, dve_f
         
         return x
     

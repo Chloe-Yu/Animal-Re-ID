@@ -6,6 +6,7 @@ from shutil import copyfile
 import torch
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
+from torchvision import transforms
 import torch.nn as nn
 import random
 import numpy as np
@@ -21,6 +22,7 @@ from metric import evaluate_CMC
 version =  torch.__version__
 from torch.utils.tensorboard import SummaryWriter
 from pytorch_metric_learning import losses, miners
+from test import eval_on_one
 
 
 def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writer=None,way1_dve=None):
@@ -92,7 +94,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
             for _, data in enumerate(dataloaders[phase]):
                 # get the inputs
                 if opt.joint or opt.joint_all:
-                    inputs_ori, labels, direction,warped_inputs,meta = data
+                    inputs_ori, labels, direction,dve_img,warped_inputs,meta = data
                 else:
                     inputs_ori, labels, direction = data
                 labels = labels.long()
@@ -117,29 +119,35 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     inputs = Variable(inputs.cuda().detach())
                     labels = Variable(labels.cuda().detach())
                     direction = Variable(direction.cuda().detach())
-                    if opt.joint or opt.joint_all:
+                    if opt.joint or opt.joint_all and epoch >= opt.dve_start:
                         warped_inputs = Variable(warped_inputs.cuda().detach())
+                        dve_img = Variable(dve_img.cuda().detach())
                 else:
                     inputs, labels, direction = Variable(inputs), Variable(labels), Variable(directions)
-                    if opt.joint or opt.joint_all:
+                    if opt.joint or opt.joint_all and epoch >= opt.dve_start:
                         warped_inputs = Variable(warped_inputs)
+                        dve_img = Variable(dve_img)
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 
                 # forward
-                if opt.joint or opt.joint_all:
+                if opt.joint or opt.joint_all and epoch >= opt.dve_start:
                     if phase == 'val':
                         with torch.no_grad():
-                            outputs,dve_outputs = model(inputs,dve=True)
+                            outputs = model(inputs)
                             if isinstance(model, torch.nn.DataParallel):
+                                dve_outputs = model.module.dve_forward(dve_img)
                                 dve_warped_outputs = model.module.dve_forward(warped_inputs)
                             else:
+                                dve_outputs = model.dve_forward(dve_img)
                                 dve_warped_outputs = model.dve_forward(warped_inputs)
                     else:
-                        outputs,dve_outputs = model(inputs,dve=True)
+                        outputs = model(inputs)
                         if isinstance(model, torch.nn.DataParallel):
+                            dve_outputs = model.module.dve_forward(dve_img)
                             dve_warped_outputs = model.module.dve_forward(warped_inputs)
                         else:
+                            dve_outputs = model.dve_forward(dve_img)
                             dve_warped_outputs = model.dve_forward(warped_inputs)
                 elif opt.way1_dve:
                     if phase == 'val':
@@ -196,7 +204,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                         loss += trip_loss
                         running_loss_tri += trip_loss.item() * now_batch_size
 
-                    if opt.joint or opt.joint_all:
+                    if opt.joint or opt.joint_all and epoch >= opt.dve_start:
                         if isinstance(model, torch.nn.DataParallel):
                             dloss = dve_loss(dve_outputs,dve_warped_outputs,meta,normalize_vectors=False).mean()
                         else:
@@ -254,22 +262,23 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                 # last_model_wts = model.module.state_dict()
                 CMC,ap,_ = evaluate_CMC(query_features, query_labels, gallery_features, gallery_labels,
                                       remove_closest=False, distance='euclidean')
-                if ap > best_ap:
-                    best_ap = ap
-                    save_network(model,epoch,name,best=True)
                 
-                writer.add_scalar('Rank@1',CMC[0].numpy(), epoch)
-                writer.add_scalar('Rank@5',CMC[4].numpy(), epoch)
-                writer.add_scalar('Rank@10',CMC[9].numpy(), epoch)
-                writer.add_scalar('mAP',ap/dataset_sizes['val'], epoch)
+                
+                writer.add_scalar('val_Rank@1',CMC[0].numpy(), epoch)
+                writer.add_scalar('val_Rank@5',CMC[4].numpy(), epoch)
+                writer.add_scalar('val_Rank@10',CMC[9].numpy(), epoch)
+                writer.add_scalar('val_mAP',ap/dataset_sizes['val'], epoch)
              
                 
                 if epoch in [99,199,229,259,289,309]:
                     save_network(model,epoch,name)
                     
-                
-                
-                
+                    
+                if ap > best_ap:
+                    best_ap = ap
+                    save_network(model,epoch,name,best=True)
+                    
+  
                 if opt.ent_cls:
                     writer.add_scalar('val_ent_loss',epoch_ent_loss, epoch)
                 if opt.use_posture:
@@ -284,6 +293,22 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     writer.add_scalar('val_acc',epoch_acc, epoch)
                 if opt.use_posture:
                     writer.add_scalar('val_acc_posture',epoch_acc_posture, epoch)
+                    
+                    
+                if opt.test:
+                    seg = '_seg' if ('Seg' in root) else '_ori'
+                    test_metric = eval_on_one(model,way1_dve,opt.data_type,test_data_transforms,
+                                              opt.linear_num,concat=True,seg=seg)
+                    if opt.data_type == 'tiger':
+                        test_metric_map = test_metric["result"][0]["public_split"]['mmAP']
+                        test_metric_top1 = test_metric["result"][0]["public_split"]['top-1(cross_cam)']
+                    else:
+                        test_metric_map = test_metric['mAP']
+                        test_metric_top1 = test_metric['Rank@1']
+                    writer.add_scalar('test_Rank@1',test_metric_top1, epoch)
+                    writer.add_scalar('test_mAP',test_metric_map, epoch)
+                    
+                    
             if phase == 'train':
                 scheduler.step()
                 if opt.ent_cls:
@@ -324,6 +349,7 @@ if __name__ =='__main__':
     parser.add_argument('--ori_dim', action='store_true', help='use original input dimension' )
     parser.add_argument('--ori_stride', action='store_true', help='no modification to layer 2 of se-resnet' )
     parser.add_argument('--way1_dve', action='store_true', help='use way1 of combining dve with re-id' )
+    parser.add_argument('--test', action='store_true', help='log metric on test data' )
     parser.add_argument('--version',default='1',type=str, help='version of way1 to use' )
     # data
     parser.add_argument("--data_type",required=True, default = 'yak',type=str)
@@ -354,6 +380,7 @@ if __name__ =='__main__':
     parser.add_argument('--seed', default=0, type=int, help='seed')
     parser.add_argument('--circle_loss_scale', default=1.0, type=float, help='circle_loss_scale')
     parser.add_argument('--dve_loss_scale', default=1.0, type=float, help='dve_loss_scale')
+    parser.add_argument('--dve_start', default=0, type=int, help='epoch to start adding dve loss')
 
     opt = parser.parse_args()
     #initialization
@@ -420,6 +447,14 @@ if __name__ =='__main__':
     
     print(train_paths)
     
+    if opt.test:
+        test_data_transforms = transforms.Compose([
+                transforms.Resize((h, w), interpolation=3),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+               
+        ])
+    
     if opt.triplet_sampler:#classic triplet sampling
         #DOES NOT support joint all with all species for now.
         train_data, val_data, num_classes = load_triplet_direction_gallery_probe(
@@ -476,7 +511,7 @@ if __name__ =='__main__':
         
     since = time.time()
     if opt.joint or opt.joint_all:
-        inputs, classes, directions, _,_ = next(iter(dataloaders['train']))
+        inputs, classes, directions, _,_,_ = next(iter(dataloaders['train']))
     else:
         inputs, classes, directions = next(iter(dataloaders['train']))
         
