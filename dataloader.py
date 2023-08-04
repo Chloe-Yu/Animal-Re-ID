@@ -264,7 +264,7 @@ def load_dve_pair(root, train_paths, signal=' ',
 # load reid: train gallery probe
 #
 def load_direction_gallery_probe(root, train_paths, probe_paths, signal=' ',
-                                  input_size=(224, 448),warper=None):
+                                  input_size=(224, 224),warper=None,resize_size=(256,256)):
 
     train_list = []
     for i in train_paths:
@@ -276,11 +276,12 @@ def load_direction_gallery_probe(root, train_paths, probe_paths, signal=' ',
         tmp = get_label(i)
         probe_list = probe_list + tmp
         
-    initial_transform = transforms.Resize(input_size, interpolation=3)
+    initial_transform =  transforms.Compose([
+        transforms.Resize(resize_size, interpolation=3),
+        transforms.RandomCrop(input_size)])
+    
 
     train_transformer = transforms.Compose([
-        transforms.Pad(10),
-        transforms.RandomCrop(input_size),
         transforms.ToTensor(),
         transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD),
         RandomErasing(),

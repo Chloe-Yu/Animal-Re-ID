@@ -12,7 +12,7 @@ def cosine_dist(x, y):
     """
     x_norm, y_norm = x,y
       
-    dist = 1- torch.mm(x_norm, y_norm.transpose(0,1))
+    dist = 1- torch.matmul(x_norm, y_norm.transpose(0,1))
     return dist
 
 def euclidean_dist(x, y):
@@ -30,6 +30,8 @@ def euclidean_dist(x, y):
     dist.addmm_(1, -2, x, y.t())
     dist = dist.clamp(min=1e-12).sqrt()  # for numerical stability
     return dist
+
+
 
 ###################
 #compute metric
@@ -76,6 +78,12 @@ def evaluate_CMC(query_features, query_labels, gallery_features, gallery_labels,
     CMC = CMC.float()
     CMC = CMC / len(query_labels)  # average CMC
     return CMC, ap, score
+
+def evaluate_CMC_per_query(query_feature, query_label, gallery_features, gallery_labels, remove_closest = True):
+
+    score = cosine_dist(query_feature,gallery_features)
+    ap_tmp, CMC_tmp = evaluate_rerank(score, query_label, gallery_labels,remove_closest)
+    return CMC_tmp, ap_tmp, score
 
 
 #######################################################################

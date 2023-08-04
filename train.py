@@ -173,7 +173,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     else:
                         gallery_features[batch_i:min(batch_i+now_batch_size,samples_per_epoch),:] = ff.cpu()
                     
-                    if opt.joint_all:
+                    if opt.joint_all and phase == 'train':
                         # excluding images of other species for ent_loss and pos_loss & circle loss
                         positions = torch.tensor([i for i in range(logits.size(0)) if (i%2==0) or i>=2*opt.num_other]).cuda()
                         direction = direction[positions]
@@ -217,6 +217,12 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                 
                 del inputs
                 del inputs_ori
+                if opt.joint or opt.joint_all and epoch >= opt.dve_start:
+                    del dve_img
+                    del warped_inputs
+                    del dve_outputs
+                    del dve_warped_outputs
+                    
                 torch.cuda.empty_cache()
                 
                     
@@ -295,7 +301,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     writer.add_scalar('val_acc_posture',epoch_acc_posture, epoch)
                     
                     
-                if opt.test:
+                if opt.test and epoch % opt.test_freq == 0:
                     seg = '_seg' if ('Seg' in root) else '_ori'
                     test_metric = eval_on_one(model,way1_dve,opt.data_type,test_data_transforms,
                                               opt.linear_num,concat=True,seg=seg)
@@ -308,6 +314,20 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     writer.add_scalar('test_Rank@1',test_metric_top1, epoch)
                     writer.add_scalar('test_mAP',test_metric_map, epoch)
                     
+                if opt.test_transfer and epoch % opt.test_freq == 0:
+                    seg = '_seg' if ('Seg' in root) else '_ori'
+                    for datatype in ['tiger','yak','elephant']:
+                        if datatype != opt.data_type:
+                            test_metric = eval_on_one(model,way1_dve,datatype,test_data_transforms,
+                                                    opt.linear_num,concat=True,seg=seg)
+                            if datatype == 'tiger':
+                                test_metric_map = test_metric["result"][0]["public_split"]['mmAP']
+                                test_metric_top1 = test_metric["result"][0]["public_split"]['top-1(cross_cam)']
+                            else:
+                                test_metric_map = test_metric['mAP']
+                                test_metric_top1 = test_metric['Rank@1']
+                            writer.add_scalar(datatype+'_test_transfer_Rank@1',test_metric_top1, epoch)
+                            writer.add_scalar(datatype+'_test_transfer_mAP',test_metric_map, epoch)
                     
             if phase == 'train':
                 scheduler.step()
@@ -350,6 +370,8 @@ if __name__ =='__main__':
     parser.add_argument('--ori_stride', action='store_true', help='no modification to layer 2 of se-resnet' )
     parser.add_argument('--way1_dve', action='store_true', help='use way1 of combining dve with re-id' )
     parser.add_argument('--test', action='store_true', help='log metric on test data' )
+    parser.add_argument('--test_transfer', action='store_true', help='log metric on test data of other species' )
+    parser.add_argument('--test_freq',default='1',type=int, help='test frequency' )
     parser.add_argument('--version',default='1',type=str, help='version of way1 to use' )
     # data
     parser.add_argument("--data_type",required=True, default = 'yak',type=str)

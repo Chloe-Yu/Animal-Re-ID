@@ -506,6 +506,47 @@ class tiger_cnn5_v1(nn.Module):
             dve_f = self.last_conv(x_stacked)
         
         return dve_f
+    
+    def test_adapt(self, x, dve_f, probe_dve, shuffle = False, simple = False, probe_l2= None):
+        #dve_f [B,56,56,64] -> [B,56*56,64]
+        #probe_dve [56,56,64] -> [56*56,64]->[64,56*56]
+        B, H, W, D = dve_f.size()
+        dve_f = dve_f.reshape(x.shape[0],-1,x.shape[-1])
+        probe_dve = probe_dve.reshape(-1,probe_dve.shape[-1]).transpose(0,1)
+        dve_f_norm = dve_f.div(torch.norm(dve_f, p=2, dim=2, keepdim=True).expand_as(dve_f))
+        probe_dve_norm = probe_dve.div(torch.norm(probe_dve, p=2, dim=0, keepdim=True).expand_as(probe_dve))
+        
+        cos_sim = torch.matmul(dve_f_norm,probe_dve_norm) # [B,56*56,56*56]
+        scores,positions = cos_sim.max(dim=2) # [B,56*56]
+        att = F.softmax(scores.view(B,1,-1), dim=2).view(B,1,H,W) # [B,1,56,56]
+        
+        x = self.model.backbone.layer0(x)
+        x = self.model.backbone.layer1(x)
+        x_l2 = self.model.backbone.layer2(x) # [B,512,56,56]
+        
+        if shuffle:
+            x_l2 = x_l2.reshape(B,-1,H*W).gather(2,positions.expand(B,x_l2.shape[1],H*W))
+            x_l2 = x_l2.reshape(B,-1,H,W)
+        
+        if not simple:
+            x_l2 = torch.mul(att.expand_as(x_l2), x_l2)
+            x_l3 = self.model.backbone.layer3(x_l2)
+            x_l4 = self.model.backbone.layer4(x_l3)
+            
+            x = torch.mean(torch.mean(x_l4, dim=2), dim=2)
+            x = self.classifier(x)
+            
+            return x[1]
+        else:
+            assert probe_l2 is not None
+            # [B,512,56,56]
+            x_l2_norm = x_l2.div(torch.norm(x_l2, p=2, dim=1, keepdim=True).expand_as(x_l2))
+            probe_l2_norm = probe_l2.div(torch.norm(probe_l2, p=2, dim=1, keepdim=True).expand_as(probe_l2))
+            cos_sim = torch.mul(x_l2_norm,probe_l2_norm).sum(dim=1) # [B,56,56]
+            scores = cos_sim.sum(dim=1).sum(dim=1) # [B]
+            return scores #negative sum of cosine similarity-> equivalent to cosine distance
+        
+        
 
     def eval_forward(self,x):
         x = self.model.backbone.layer0(x)

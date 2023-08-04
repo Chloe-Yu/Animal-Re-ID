@@ -164,6 +164,9 @@ def eval_on_one(model,dve,dataset_type,data_transforms,linear_num,concat,seg=Tru
     else:
         metric = {'Rank@1':CMC[0].numpy().tolist(),'Rank@5':CMC[4].numpy().tolist(),'Rank@10':CMC[9].numpy().tolist(),'mAP':ap / len(query_label)}
     
+    del query_feature
+    del gallery_feature
+    torch.cuda.empty_cache()
     
     return metric
     
