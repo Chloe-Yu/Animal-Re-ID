@@ -88,7 +88,23 @@ def extract_feature(model,dataloaders,linear_num,batchsize,concat,dve=None):
 
 
 
-def eval_on_one(model,dve,dataset_type,data_transforms,linear_num,concat,seg=True,batch_size=32):
+def eval_on_one(model,dve,dataset_type,linear_num,concat,seg=True,batch_size=32):
+    if dataset_type == 'tiger':
+        data_transforms = transforms.Compose([
+            # transforms.Resize((324,504), Image.BILINEAR),
+            # transforms.CenterCrop((288,448)),
+            transforms.Resize((256,256), Image.BILINEAR),
+            transforms.CenterCrop((224,224)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+    else:
+        data_transforms = transforms.Compose([
+                transforms.Resize((224, 224), interpolation=3),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+               
+        ])
+    
     gallery_path_dic = {'tiger':'./datalist/mytest.txt',
                     's_yak':'./datalist/yak_gallery_simple.txt',
                     'h_yak':'./datalist/yak_gallery_hard.txt',
@@ -175,10 +191,10 @@ def evaluate(model,dve,opt):
     metrics = {}
     if opt.dataset_type == 'all':
         for dataset_type in ['tiger','h_yak','elephant']:   
-            metrics[dataset_type]=eval_on_one(model,dve,dataset_type,data_transforms,opt.linear_num,
+            metrics[dataset_type]=eval_on_one(model,dve,dataset_type,opt.linear_num,
                                               opt.concat,seg,opt.batchsize)
     else:
-        metrics[opt.dataset_type]=eval_on_one(model,dve,opt.dataset_type,data_transforms,opt.linear_num,
+        metrics[opt.dataset_type]=eval_on_one(model,dve,opt.dataset_type,opt.linear_num,
                                               opt.concat,seg,opt.batchsize)
     return metrics
         
@@ -198,9 +214,9 @@ if __name__ == '__main__':
     parser.add_argument('--way1_dve', action='store_true', help='use method1 for combining dve with re-id' )
     parser.add_argument('--name', default='ft_ResNet50', type=str, help='model name')
     parser.add_argument('--concat', action='store_true', help='concat flipped feature' )
-    parser.add_argument('--ori_dim', action='store_true', help='use original input image dimension' )
+    #parser.add_argument('--ori_dim', action='store_true', help='use original input image dimension' )
     parser.add_argument('--ori_stride', action='store_true', help='use original stride at layer 2' )
-    parser.add_argument('--transform_ori', action='store_true', help='use original eval transform' )
+    #parser.add_argument('--transform_ori', action='store_true', help='use original eval transform' )
     parser.add_argument('-r', '--resume', default=None, type=str,help='path to dve checkpoint (default: None)')
     parser.add_argument('--seed', default="0", help='random seed')
     parser.add_argument('--joint', action='store_true', help='trained joint or joint all' )
@@ -229,24 +245,12 @@ if __name__ == '__main__':
     use_gpu = torch.cuda.is_available()
     os.environ["CUDA_VISIBLE_DEVICES"] = opt.gpu_ids
     
-    if opt.ori_dim:
-        h, w = 288, 448
-    else:
-        h, w = 224, 224
+    # if opt.ori_dim:
+    #     h, w = 288, 448
+    # else:
+    #     h, w = 224, 224
         
-    if opt.transform_ori:
-        data_transforms = transforms.Compose([
-            transforms.Resize((324,504), Image.BILINEAR),
-            transforms.CenterCrop((288,448)),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
-    else:
-        data_transforms = transforms.Compose([
-                transforms.Resize((h, w), interpolation=3),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-               
-        ])
+    
         
     gallery_path_dic = {'tiger':'./datalist/mytest.txt',
                     's_yak':'./datalist/yak_gallery_simple.txt',

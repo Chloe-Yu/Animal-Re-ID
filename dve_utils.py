@@ -15,7 +15,7 @@ def dense_correlation_loss_dve(feats1,feats2, meta, pow=0.5, fold_corr=False, no
     device = feats1.device
 
     # Grid (B,H,W,2): For each pixel in im1, where did it come from in im2
-    if 'grid' in meta:
+    if isinstance(meta, dict):
         grid = meta['grid'].to(device)
     else:
         grid = meta.to(device)

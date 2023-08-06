@@ -25,6 +25,7 @@ class LabelSmoothingCrossEntropy(nn.Module):
 
         
         nll_loss = -logprobs.gather(dim=-1, index=target.unsqueeze(1))
+        
 
         nll_loss = nll_loss.squeeze(1) 
         smooth_loss = -logprobs.mean(dim=-1)

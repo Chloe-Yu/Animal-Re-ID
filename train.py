@@ -173,36 +173,46 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     else:
                         gallery_features[batch_i:min(batch_i+now_batch_size,samples_per_epoch),:] = ff.cpu()
                     
+                
+                    labels_cur = labels
                     if opt.joint_all and phase == 'train':
                         # excluding images of other species for ent_loss and pos_loss & circle loss
-                        positions = torch.tensor([i for i in range(logits.size(0)) if (i%2==0) or i>=2*opt.num_other]).cuda()
+                        if opt.triplet_sampler:
+                            positions = labels < numClasses
+                        else:
+                            positions = torch.tensor([i for i in range(logits.size(0)) if (i%2==0) or i>=2*opt.num_other]).cuda()
                         direction = direction[positions]
-                        labels = labels[positions]
                         logits = logits[positions]
                         posture_logits = posture_logits[positions]
-                        ff = ff[positions]
+                        labels_cur = labels[positions]
+                        if not opt.triplet_sampler:
+                            ff = ff[positions]
                     
                     
                     loss = 0.0
                     if opt.ent_cls:
-                        ent_loss = criterion(logits, labels)
+                        ent_loss = criterion(logits, labels_cur)
                         loss += ent_loss
                         _, preds = torch.max(logits.data, 1)
-                        running_loss_ent += ent_loss.item() * (now_batch_size-num_other)
+                        running_loss_ent += ent_loss.item() * logits.shape[0]
                     if opt.use_posture:
                         pos_loss = criterion(posture_logits, direction)
                         loss +=  pos_loss
                         _,preds_posture = torch.max(posture_logits.data, 1)
-                        running_loss_pos += pos_loss.item() * (now_batch_size-num_other)
+                        running_loss_pos += pos_loss.item() * posture_logits.shape[0]
+                    
                     if opt.circle:
-                        cir_loss = criterion_circle(*convert_label_to_similarity( ff, labels))
+                        if opt.joint_all and phase =='train' and not opt.triplet_sampler:
+                            cir_loss = criterion_circle(*convert_label_to_similarity( ff, labels_cur))
+                        else:
+                            cir_loss = criterion_circle(*convert_label_to_similarity( ff, labels))
                         running_loss_circle +=  cir_loss.item() 
-                        loss += (opt.circle_loss_scale*cir_loss)/now_batch_size
+                        loss += (opt.circle_loss_scale*cir_loss)/ff.shape[0]
                     if opt.triplet:
                         hard_pairs = miner(ff, labels)
                         trip_loss = criterion_triplet(ff, labels, hard_pairs) #/now_batch_size
                         loss += trip_loss
-                        running_loss_tri += trip_loss.item() * now_batch_size
+                        running_loss_tri += trip_loss.item() * ff.shape[0]
 
                     if opt.joint or opt.joint_all and epoch >= opt.dve_start:
                         if isinstance(model, torch.nn.DataParallel):
@@ -210,7 +220,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                         else:
                             dloss = dve_loss(dve_outputs,dve_warped_outputs,meta,normalize_vectors=False)
                         loss += opt.dve_loss_scale* dloss
-                        running_loss_dve += dloss.item() * now_batch_size
+                        running_loss_dve += dloss.item() * dve_outputs.shape[0]
             
                 else:
                     raise NotImplementedError
@@ -237,7 +247,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     optimizer.step()
                     
                 if opt.ent_cls:
-                    running_corrects += float(torch.sum(preds == labels.data))
+                    running_corrects += float(torch.sum(preds == labels_cur.data))
                 if opt.use_posture:
                     running_corrects_posture += float(torch.sum(preds_posture == direction.data))
                 batch_i+=now_batch_size
@@ -303,7 +313,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     
                 if opt.test and epoch % opt.test_freq == 0:
                     seg = '_seg' if ('Seg' in root) else '_ori'
-                    test_metric = eval_on_one(model,way1_dve,opt.data_type,test_data_transforms,
+                    test_metric = eval_on_one(model,way1_dve,opt.data_type,
                                               opt.linear_num,concat=True,seg=seg)
                     if opt.data_type == 'tiger':
                         test_metric_map = test_metric["result"][0]["public_split"]['mmAP']
@@ -318,7 +328,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     seg = '_seg' if ('Seg' in root) else '_ori'
                     for datatype in ['tiger','yak','elephant']:
                         if datatype != opt.data_type:
-                            test_metric = eval_on_one(model,way1_dve,datatype,test_data_transforms,
+                            test_metric = eval_on_one(model,way1_dve,datatype,
                                                     opt.linear_num,concat=True,seg=seg)
                             if datatype == 'tiger':
                                 test_metric_map = test_metric["result"][0]["public_split"]['mmAP']
@@ -469,13 +479,6 @@ if __name__ =='__main__':
     
     print(train_paths)
     
-    if opt.test:
-        test_data_transforms = transforms.Compose([
-                transforms.Resize((h, w), interpolation=3),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-               
-        ])
     
     if opt.triplet_sampler:#classic triplet sampling
         #DOES NOT support joint all with all species for now.
@@ -485,7 +488,9 @@ if __name__ =='__main__':
             probe_paths=probe_paths,
             signal=' ',
             input_size=(h,w),
-            warper = warper
+            warper = warper,
+            cropped=opt.data_type != 'tiger',
+            joint_all=opt.joint_all
         )
         collate_fn=train_collate
     else:
@@ -495,7 +500,8 @@ if __name__ =='__main__':
                 probe_paths=probe_paths,
                 signal=' ',
                 input_size=(h,w),
-                warper=warper
+                warper=warper,
+                cropped=opt.data_type != 'tiger'
             )
         collate_fn=torch.utils.data.dataloader.default_collate
     
@@ -510,7 +516,8 @@ if __name__ =='__main__':
     
     image_datasets={'train':train_data,'val':val_data}
     
-    if opt.joint_all:
+    
+    if opt.joint_all and not opt.triplet_sampler:
         assert opt.data_type != 'all' # this is for training re-id with only one species,please use --joint instead
         dataloaders={'train':DataLoader(image_datasets['train'],
                                         batch_sampler = JointAllBatchSampler(image_datasets['train'],opt.batch_size,
@@ -522,7 +529,10 @@ if __name__ =='__main__':
         
 
     else:
-        dataloaders = {'train': DataLoader(image_datasets['train'], batch_size=opt.batch_size, collate_fn=collate_fn,drop_last=True,
+        batchsize = opt.batch_size
+        if opt.joint_all and opt.triplet_sampler:
+            batchsize  = opt.batch_size//3
+        dataloaders = {'train': DataLoader(image_datasets['train'], batch_size=batchsize, collate_fn=collate_fn,drop_last=True,
                                                     shuffle=True, num_workers=2, pin_memory=True,
                                                     prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
                     ,'val': DataLoader(image_datasets['val'], batch_size=opt.batch_size, collate_fn=torch.utils.data.dataloader.default_collate,drop_last=True,

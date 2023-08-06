@@ -194,7 +194,7 @@ class dataset_direction(Dataset):
             else:
                 raise NotImplementedError
     
-        return reid_img,img, label, direction
+        return reid_img, label, direction
     
     
  
@@ -203,7 +203,7 @@ class dataset_direction(Dataset):
 # triplet load data, return anchor,positive and negtive
 #
 class dataset_direction_triplet(Dataset):
-    def __init__(self, root, label, flag=1, signal=' ',initial_transform=None, transform=None, warper=None):
+    def __init__(self, root, label, flag=1, signal=' ',initial_transform=None, transform=None, warper=None,joint_all=False):
         self._root = root
         self._flag = flag
         self._label = label
@@ -215,6 +215,7 @@ class dataset_direction_triplet(Dataset):
         self.num_classes = len(self._dict_train)
         self.warper = warper
         self._initial_transform = initial_transform
+        self._joint_all = joint_all
 
     def _list_images(self, root, label, signal):
         self.synsets = []
@@ -258,7 +259,11 @@ class dataset_direction_triplet(Dataset):
         return img
 
     def __len__(self):
-        return len(self.items)
+        num_other_species = 0
+        if self._joint_all:
+            species_label = max(self._labels)
+            num_other_species = len(self._dict_train[species_label])+len(self._dict_train[species_label-1])
+        return len(self.items)-num_other_species
     
     def get_dve_warp(self,image_name):
         img = Image.open(image_name)
@@ -268,13 +273,20 @@ class dataset_direction_triplet(Dataset):
             
         im1 = TF.to_tensor(im1) * 255
         
-        _, im2, _, grid, _, _ = self.warper(im1, keypts=None, crop=0)
-        
+        im1, im2, _, grid, _, _ = self.warper(im1, keypts=None, crop=0)
+              
+        im1 = im1.to(torch.uint8)
         im2 = im2.to(torch.uint8)
+
+        im1 = TF.to_pil_image(im1)
         im2 = TF.to_pil_image(im2)
+
+        im1 = self._transform(im1)
         im2 = self._transform(im2)
+        
         meta = grid[0]
-        return im2,meta
+        
+        return im1,im2,meta
         
         
 
@@ -289,7 +301,11 @@ class dataset_direction_triplet(Dataset):
         assert nums >= 2, f'{anchor_name} {names}'
     
         positive_name, positive_direct = random.choice(list(set(names) ^ set([(anchor_name, anchor_direct)])))
-        negative_label = random.choice(list(set(self._labels) ^ set([anchor_label])))
+        if not self._joint_all or random.random() <= 0.5:
+            negative_label = random.choice(list(set(self._labels) ^ set([anchor_label])))
+        else:
+            negative_label = random.choice([max(self._labels),max(self._labels)-1])
+            
         negative_name, negative_direct = random.choice(self._dict_train[negative_label])
 
         positive_image = self.get_image(positive_name)
@@ -300,13 +316,16 @@ class dataset_direction_triplet(Dataset):
         
         if self.warper is not None:
             if self.warper.return_pairs:
-                anchor_warp,anchor_meta = self.get_dve_warp(anchor_name)
-                positive_warp,positive_meta = self.get_dve_warp(positive_name)
-                negative_warp,negative_meta = self.get_dve_warp(negative_name)
+                anchor_dve,anchor_warp,anchor_meta = self.get_dve_warp(anchor_name)
+                positive_dve,positive_warp,positive_meta = self.get_dve_warp(positive_name)
+                negative_dve,negative_warp,negative_meta = self.get_dve_warp(negative_name)
+                
+                print(anchor_label,negative_label)
                 
                 return [anchor_image, positive_image, negative_image], \
                        [anchor_label, anchor_label, negative_label], \
                        [anchor_direct, positive_direct, negative_direct],\
+                       [anchor_dve,positive_dve,negative_dve],\
                        [anchor_warp,positive_warp,negative_warp],\
                        [anchor_meta,positive_meta,negative_meta]
             else:

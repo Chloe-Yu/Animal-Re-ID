@@ -79,22 +79,25 @@ def evaluate_CMC(query_features, query_labels, gallery_features, gallery_labels,
     CMC = CMC / len(query_labels)  # average CMC
     return CMC, ap, score
 
-def evaluate_CMC_per_query(query_feature, query_label, gallery_features, gallery_labels, remove_closest = True):
+def evaluate_CMC_per_query(query_feature, query_label, gallery_features, gallery_labels, remove_closest = True, invalid_index=None):
 
     score = cosine_dist(query_feature,gallery_features)
-    ap_tmp, CMC_tmp = evaluate_rerank(score, query_label, gallery_labels,remove_closest)
+    
+    ap_tmp, CMC_tmp = evaluate_rerank(score, query_label, gallery_labels,remove_closest,invalid_index)
     return CMC_tmp, ap_tmp, score
 
 
 #######################################################################
 # Evaluate one query after re-ranking
-def evaluate_rerank(score, ql, gl,remove_closest):
+def evaluate_rerank(score, ql, gl,remove_closest,invalid_index=None):
     index = np.argsort(score)
     query_index = np.argwhere(gl == ql).flatten()
     good_index = query_index
     
     if remove_closest:
         id_ind = index[0]
+        assert id_ind == invalid_index
+        
         if torch.is_tensor(id_ind):
             id_ind = id_ind.item()
         index = index[1:] #discarded the one with shorted distance to not count itself

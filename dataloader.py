@@ -198,7 +198,7 @@ class JointAllBatchSampler(Sampler):
 
 
 def load_triplet_direction_gallery_probe(root, train_paths, probe_paths, signal=' ',
-                                         input_size=(224, 448), warper=None):
+                                         input_size=(224, 448), warper=None,resize_size=(256,256),cropped=True,joint_all=False):
 
     train_list = []
     for i in train_paths:
@@ -210,6 +210,30 @@ def load_triplet_direction_gallery_probe(root, train_paths, probe_paths, signal=
     for i in probe_paths:
         tmp = get_label(i)
         probe_list = probe_list + tmp
+        
+    if cropped:
+        initial_transform = transforms.Resize(input_size, interpolation=3)
+
+        train_transformer = transforms.Compose([
+            transforms.Pad(10),
+            transforms.RandomCrop(input_size),
+            transforms.ToTensor(),
+            transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD),
+            RandomErasing(),
+            Cutout(),
+        ])
+    else:    
+        initial_transform =  transforms.Compose([
+            transforms.Resize(resize_size, interpolation=3),
+            transforms.RandomCrop(input_size)])
+
+
+        train_transformer = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD),
+            RandomErasing(),
+            Cutout(),
+        ])
         
     initial_transform = transforms.Resize(input_size, interpolation=3)
 
@@ -227,7 +251,7 @@ def load_triplet_direction_gallery_probe(root, train_paths, probe_paths, signal=
         transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD)
     ])
 
-    train_dataset = dataset_direction_triplet(root, train_list, flag=1, signal=signal, transform=train_transformer,warper=warper,initial_transform=initial_transform)
+    train_dataset = dataset_direction_triplet(root, train_list, flag=1, signal=signal, transform=train_transformer,warper=warper,initial_transform=initial_transform,joint_all=joint_all)
     probe_dataset = dataset_direction(root, probe_list, flag=1, signal=signal, transform=probe_transformer,warper=warper,initial_transform=initial_transform)
 
    
@@ -264,7 +288,7 @@ def load_dve_pair(root, train_paths, signal=' ',
 # load reid: train gallery probe
 #
 def load_direction_gallery_probe(root, train_paths, probe_paths, signal=' ',
-                                  input_size=(224, 224),warper=None,resize_size=(256,256)):
+                                  input_size=(224, 224),warper=None,resize_size=(256,256),cropped=True):
 
     train_list = []
     for i in train_paths:
@@ -276,17 +300,29 @@ def load_direction_gallery_probe(root, train_paths, probe_paths, signal=' ',
         tmp = get_label(i)
         probe_list = probe_list + tmp
         
-    initial_transform =  transforms.Compose([
-        transforms.Resize(resize_size, interpolation=3),
-        transforms.RandomCrop(input_size)])
-    
+    if cropped:
+        initial_transform = transforms.Resize(input_size, interpolation=3)
 
-    train_transformer = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD),
-        RandomErasing(),
-        Cutout(),
-    ])
+        train_transformer = transforms.Compose([
+            transforms.Pad(10),
+            transforms.RandomCrop(input_size),
+            transforms.ToTensor(),
+            transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD),
+            RandomErasing(),
+            Cutout(),
+        ])
+    else:    
+        initial_transform =  transforms.Compose([
+            transforms.Resize(resize_size, interpolation=3),
+            transforms.RandomCrop(input_size)])
+
+
+        train_transformer = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD),
+            RandomErasing(),
+            Cutout(),
+        ])
     
     probe_transformer = transforms.Compose([
         transforms.ToTensor(),
@@ -311,6 +347,7 @@ def train_collate(batch):
     images = []
     labels = []
     directs = []
+    dve_images = []
     warps = []
     metas = []
     dve_warp = len(batch[0]) > 3
@@ -322,15 +359,17 @@ def train_collate(batch):
             labels.extend(batch[b][1])
             directs.extend(batch[b][2])
             if dve_warp:
-                warps.extend(batch[b][3])
-                metas.extend(batch[b][4])
+                dve_images.extend(batch[b][3])
+                warps.extend(batch[b][4])
+                metas.extend(batch[b][5])
     images = torch.stack(images, 0)
     labels = torch.from_numpy(np.array(labels))
     directs = torch.from_numpy(np.array(directs))
     if dve_warp:
+        dve_images = torch.stack(dve_images, 0)
         warps = torch.stack(warps, 0)
         metas =  torch.stack(metas, 0)
-        return images, labels, directs, warps, metas
+        return images, labels, directs,dve_images, warps, metas
     return images, labels, directs
 
 

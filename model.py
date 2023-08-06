@@ -11,6 +11,8 @@ from torch.autograd import Variable
 from collections import OrderedDict
 import torch.nn.functional as F
 from adaptive_avgmax_pool import SelectAdaptivePool2d
+import numpy as np
+import matplotlib.pyplot as plt
 
 IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
@@ -507,25 +509,37 @@ class tiger_cnn5_v1(nn.Module):
         
         return dve_f
     
-    def test_adapt(self, x, dve_f, probe_dve, shuffle = False, simple = False, probe_l2= None):
-        #dve_f [B,56,56,64] -> [B,56*56,64]
-        #probe_dve [56,56,64] -> [56*56,64]->[64,56*56]
-        B, H, W, D = dve_f.size()
-        dve_f = dve_f.reshape(x.shape[0],-1,x.shape[-1])
-        probe_dve = probe_dve.reshape(-1,probe_dve.shape[-1]).transpose(0,1)
-        dve_f_norm = dve_f.div(torch.norm(dve_f, p=2, dim=2, keepdim=True).expand_as(dve_f))
-        probe_dve_norm = probe_dve.div(torch.norm(probe_dve, p=2, dim=0, keepdim=True).expand_as(probe_dve))
+    def get_probe_feature(self, x ,simple=False):
+        if simple:
+            x = self.model.backbone.layer0(x)
+            x = self.model.backbone.layer1(x)
+            x_l2 = self.model.backbone.layer2(x)
+            return x_l2
+        else:
+            return self.forward(x)[1]
+    
+    def test_adapt(self, x, dve_f, probe_dve_normed, shuffle = False, simple = False, probe_l2_norm= None):
+        #dve_f [B,64,56,56]-> [B,64,56*56] -> [B,56*56,64]
+        #probe_dve_normed ([64,56,56] -> [64,56*56)
+        B,D, H, W = dve_f.size()
+        dve_f = dve_f.reshape(dve_f.shape[0],dve_f.shape[1],-1).transpose(1,2)
+        dve_f_norm = dve_f.div(torch.norm(dve_f,p=2, dim=1, keepdim=True).expand_as(dve_f))
         
-        cos_sim = torch.matmul(dve_f_norm,probe_dve_norm) # [B,56*56,56*56]
+        cos_sim = torch.matmul(dve_f_norm,probe_dve_normed) # [B,56*56,56*56]
         scores,positions = cos_sim.max(dim=2) # [B,56*56]
+        #scores = cos_sim.sum(dim=2) # [B,56*56]
         att = F.softmax(scores.view(B,1,-1), dim=2).view(B,1,H,W) # [B,1,56,56]
+        print('scores',scores)
+        print('att',att)
+        plt.imshow(att[0,0].detach().cpu().numpy())
+        plt.savefig('att.png')
         
         x = self.model.backbone.layer0(x)
         x = self.model.backbone.layer1(x)
         x_l2 = self.model.backbone.layer2(x) # [B,512,56,56]
         
         if shuffle:
-            x_l2 = x_l2.reshape(B,-1,H*W).gather(2,positions.expand(B,x_l2.shape[1],H*W))
+            x_l2 = x_l2.reshape(B,-1,H*W).gather(2,positions.unsqueeze(1).expand(B,x_l2.shape[1],H*W))
             x_l2 = x_l2.reshape(B,-1,H,W)
         
         if not simple:
@@ -538,12 +552,15 @@ class tiger_cnn5_v1(nn.Module):
             
             return x[1]
         else:
-            assert probe_l2 is not None
+            assert probe_l2_norm is not None
             # [B,512,56,56]
+            
             x_l2_norm = x_l2.div(torch.norm(x_l2, p=2, dim=1, keepdim=True).expand_as(x_l2))
-            probe_l2_norm = probe_l2.div(torch.norm(probe_l2, p=2, dim=1, keepdim=True).expand_as(probe_l2))
-            cos_sim = torch.mul(x_l2_norm,probe_l2_norm).sum(dim=1) # [B,56,56]
-            scores = cos_sim.sum(dim=1).sum(dim=1) # [B]
+            #probe_l2_norm = probe_l2.div(torch.norm(probe_l2, p=2, dim=1, keepdim=True).expand_as(probe_l2))
+            cos_dis = 1-torch.mul(x_l2_norm,probe_l2_norm.cuda()).sum(dim=1) # [B,56,56]
+            
+            cos_dis = torch.mul(att.squeeze(1), cos_dis)#
+            scores = cos_dis.sum(dim=1).sum(dim=1) # [B]
             return scores #negative sum of cosine similarity-> equivalent to cosine distance
         
         
@@ -813,9 +830,12 @@ class ft_net_64(nn.Module):
         return [x]
     
 if __name__ == '__main__':
+
     x = Variable(torch.randn(2, 3, 224, 224))
     f_dve = Variable(torch.randn(2, 64, 56, 56))
-    model = tiger_cnn5_v1(101,dve=True,stackeddve=True)
+    probe_dve_normed = Variable(torch.randn(64, 56*56))
+    probe_l2_norm = Variable(torch.randn(2,512,56,56))
+    model = tiger_cnn5_v1(101,dve=False)
     #model = seresnet_dve_2(101)
-    out = model(x,True)
+    out = model.test_adapt(x,f_dve,probe_dve_normed,shuffle=True,simple=True,probe_l2_norm=probe_l2_norm)
     print(out[0])
