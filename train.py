@@ -404,6 +404,7 @@ if __name__ =='__main__':
     parser.add_argument('--use_cnn5_v1', action='store_true', help='use tiger_cnn5_v1' )
     # loss
     parser.add_argument('--warm_epoch', default=0, type=int, help='the first K epoch that needs warm up')
+    parser.add_argument('--background', action='store_true', help='includes background in data' )
     #parser.add_argument('--freeze_dve', default=0, type=int, help='the first few epoch that needs to freeze dve')
     #parser.add_argument('--freeze_always', action='store_true', help='always keep the first layers for dve' )
     parser.add_argument('--circle', action='store_true', help='use Circle loss' )
@@ -468,7 +469,10 @@ if __name__ =='__main__':
                         'elephant':'./datalist/ele_val.txt',
                         'all':'./datalist/all_val_aligned.txt'
                         }
-    root = './data/Animal-Seg-V3/'
+    if opt.background:
+        root = './data/Animal-2/'
+    else:
+        root = './data/Animal-Seg-V3/'
 
     if opt.joint_all:
         train_paths = [train_path_dic[opt.data_type+'_all'], ]
