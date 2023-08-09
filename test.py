@@ -88,7 +88,7 @@ def extract_feature(model,dataloaders,linear_num,batchsize,concat,dve=None):
 
 
 
-def eval_on_one(model,dve,dataset_type,linear_num,concat,seg=True,batch_size=32):
+def eval_on_one(model,dve,dataset_type,linear_num,concat,seg=True,batch_size=32,sample=False):
     if dataset_type == 'tiger':
         data_transforms = transforms.Compose([
             # transforms.Resize((324,504), Image.BILINEAR),
@@ -150,7 +150,10 @@ def eval_on_one(model,dve,dataset_type,linear_num,concat,seg=True,batch_size=32)
     with torch.no_grad():
         gallery_feature,gallery_label,gallery_names = extract_feature(model,dataloaders['gallery'],linear_num,batch_size,concat,dve)
         query_feature, query_label,query_names = extract_feature(model,dataloaders['query'],linear_num,batch_size,concat,dve)
-    
+        if sample:
+            query_feature = query_feature[10:40,:]
+            query_label = query_label[10:40]
+            query_names = query_names[10:40]
     
     CMC,ap,q_g_dist = evaluate_CMC(query_feature, query_label, gallery_feature, gallery_label,remove_closest,'cos',True)
     
@@ -192,10 +195,10 @@ def evaluate(model,dve,opt):
     if opt.dataset_type == 'all':
         for dataset_type in ['tiger','h_yak','elephant']:   
             metrics[dataset_type]=eval_on_one(model,dve,dataset_type,opt.linear_num,
-                                              opt.concat,seg,opt.batchsize)
+                                              opt.concat,seg,opt.batchsize,opt.sample)
     else:
         metrics[opt.dataset_type]=eval_on_one(model,dve,opt.dataset_type,opt.linear_num,
-                                              opt.concat,seg,opt.batchsize)
+                                              opt.concat,seg,opt.batchsize,opt.sample)
     return metrics
         
     
@@ -214,13 +217,15 @@ if __name__ == '__main__':
     parser.add_argument('--way1_dve', action='store_true', help='use method1 for combining dve with re-id' )
     parser.add_argument('--name', default='ft_ResNet50', type=str, help='model name')
     parser.add_argument('--concat', action='store_true', help='concat flipped feature' )
-    #parser.add_argument('--ori_dim', action='store_true', help='use original input image dimension' )
+    parser.add_argument('--ori_dim', action='store_true', help='use original input image dimension' )
     parser.add_argument('--ori_stride', action='store_true', help='use original stride at layer 2' )
-    #parser.add_argument('--transform_ori', action='store_true', help='use original eval transform' )
+    parser.add_argument('--transform_ori', action='store_true', help='use original eval transform' )
     parser.add_argument('-r', '--resume', default=None, type=str,help='path to dve checkpoint (default: None)')
     parser.add_argument('--seed', default="0", help='random seed')
     parser.add_argument('--joint', action='store_true', help='trained joint or joint all' )
     parser.add_argument('--stacked', action='store_true', help='stack last 3 layers of backbone for dve loss.' )
+    parser.add_argument('--sample', action='store_true', help='sample 50 query' )
+   
     opt = parser.parse_args()
     ###load config###
     
@@ -273,6 +278,7 @@ if __name__ == '__main__':
             'h_yak_seg':'./data/yak_test_seg_isnet_pp',
             'h_yak_ori':'./data/val'
         }
+    
     seg = '_ori' if opt.use_ori else '_seg'
     
     
@@ -319,7 +325,9 @@ if __name__ == '__main__':
 
     con = 'concat_' if opt.concat else ''
     to = 'to_' if opt.transform_ori else ''
-    res_name = seg+ con+to+ name+str(seed)+'.txt'
+    sample = '_sample' if opt.sample else ''
+    
+    res_name = seg+ con+to+sample+ name+str(seed)+'.txt'
     
     if opt.model_path is not None:
         res_name = opt.dataset_type+'_'+opt.model_path.split('/')[-2]+'_'+opt.model_path.split('/')[-1][:-4]+'_'+res_name

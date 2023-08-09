@@ -290,9 +290,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     save_network(model,epoch,name)
                     
                     
-                if ap > best_ap:
-                    best_ap = ap
-                    save_network(model,epoch,name,best=True)
+                
                     
   
                 if opt.ent_cls:
@@ -323,6 +321,9 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                         test_metric_top1 = test_metric['Rank@1']
                     writer.add_scalar('test_Rank@1',test_metric_top1, epoch)
                     writer.add_scalar('test_mAP',test_metric_map, epoch)
+                    if test_metric_map > best_ap:
+                        best_ap = test_metric_map
+                        save_network(model,epoch,name,best=True)
                     
                 if opt.test_transfer and epoch % opt.test_freq == 0:
                     seg = '_seg' if ('Seg' in root) else '_ori'
@@ -534,7 +535,7 @@ if __name__ =='__main__':
 
     else:
         batchsize = opt.batch_size
-        if opt.joint_all and opt.triplet_sampler:
+        if (opt.joint_all or opt.joint)  and opt.triplet_sampler:
             batchsize  = opt.batch_size//3
         dataloaders = {'train': DataLoader(image_datasets['train'], batch_size=batchsize, collate_fn=collate_fn,drop_last=True,
                                                     shuffle=True, num_workers=2, pin_memory=True,

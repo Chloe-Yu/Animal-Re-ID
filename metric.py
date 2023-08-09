@@ -96,7 +96,8 @@ def evaluate_rerank(score, ql, gl,remove_closest,invalid_index=None):
     
     if remove_closest:
         id_ind = index[0]
-        assert id_ind == invalid_index
+        if invalid_index is not None:
+            assert id_ind == invalid_index
         
         if torch.is_tensor(id_ind):
             id_ind = id_ind.item()

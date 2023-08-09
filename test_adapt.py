@@ -40,11 +40,11 @@ def extract_feature_gallery(model,dataloaders,linear_num,batchsize,concat,dve=No
                 f_dves = dve(input_img)[0]
                 flip_f_dves = dve(flip_inputs)[0]
                 if isinstance(model, torch.nn.DataParallel):
-                    feature = model.module.test_adapt(input_img, f_dves, probe_dve[0].cuda(), opt.shuffle, opt.simple,probe_xl2[0])
-                    flip_features = model.module.test_adapt(flip_inputs,flip_f_dves,probe_dve[1].cuda(),opt.shuffle, opt.simple,probe_xl2[1])
+                    feature = model.module.test_adapt(input_img, f_dves, probe_dve[0].cuda(), opt.shuffle, opt.simple,probe_xl2[0],opt.alpha)
+                    flip_features = model.module.test_adapt(flip_inputs,flip_f_dves,probe_dve[1].cuda(),opt.shuffle, opt.simple,probe_xl2[1],opt.alpha)
                 else:
-                    feature = model.test_adapt(input_img, f_dves, probe_dve[0], opt.shuffle, opt.simple,probe_xl2[0])
-                    flip_features = model.test_adapt(flip_inputs,flip_f_dves,probe_dve[1],opt.shuffle, opt.simple,probe_xl2[1])
+                    feature = model.test_adapt(input_img, f_dves, probe_dve[0], opt.shuffle, opt.simple,probe_xl2[0],opt.alpha)
+                    flip_features = model.test_adapt(flip_inputs,flip_f_dves,probe_dve[1],opt.shuffle, opt.simple,probe_xl2[1],opt.alpha)
                     
             else:
                 feature = model(input_img)[1]
@@ -140,10 +140,10 @@ def extract_feature_probe(model,dataloaders,linear_num,batchsize,concat,dve=None
             # ff += f_dves
                     
         # norm feature,if simple is true, shape is [B,512,56,56], otherwise shape is [B,512]
-        featurenorm = torch.norm(feature, p=2, dim=1, keepdim=True)
-        feature = feature.div(featurenorm.expand_as(feature))
-        flipfeaturenorm = torch.norm(flip_feature, p=2, dim=1, keepdim=True)
-        flip_feature = flip_feature.div(flipfeaturenorm.expand_as(flip_feature))
+        # featurenorm = torch.norm(feature, p=2, dim=1, keepdim=True)
+        # feature = feature.div(featurenorm.expand_as(feature))
+        # flipfeaturenorm = torch.norm(flip_feature, p=2, dim=1, keepdim=True)
+        # flip_feature = flip_feature.div(flipfeaturenorm.expand_as(flip_feature))
         
         f_dves = f_dves.reshape(f_dves.shape[0],f_dves.shape[1],-1) #[B,64,56,56]->[B,64,3136]
         f_dves_normed = f_dves.div(torch.norm(f_dves, p=2, dim=1, keepdim=True).expand_as(f_dves))
@@ -226,7 +226,7 @@ def eval_on_one(model,dve,dataset_type,data_transforms,linear_num,concat,seg=Tru
         my_result = []
         
         #for i in tqdm(range(dve_features.shape[0])):
-        for i in tqdm(range(10,11)):
+        for i in tqdm(range(10,40)):
             curr_query = [query_features[i],query_flip_features[i]] if opt.simple else [None,None]
             curr_query_dve = [dve_features[i],flip_dve_features[i]]
             gallery_features,gallery_labels,gallery_names = extract_feature_gallery(model,dataloaders['gallery'],linear_num,batch_size,concat,dve,curr_query_dve,curr_query)
@@ -234,7 +234,7 @@ def eval_on_one(model,dve,dataset_type,data_transforms,linear_num,concat,seg=Tru
             invalid_index=None
             if remove_closest:             
                 curr_query_name = query_names[i]
-                print(curr_query_name)
+                #print(curr_query_name)
                 invalid_index = gallery_names.index(curr_query_name)
             
             if opt.simple:
@@ -286,6 +286,7 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--dataset_type", required=False, help="it can be tiger,s_yak,h_yak or elephant or all", default='tiger')
     parser.add_argument("-m", "--model_path", required=False, default=None)
     parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
+    parser.add_argument('--alpha',default=1.0, type=float,help='alpha for attention')
     parser.add_argument('--batchsize', default=32, type=int, help='batchsize')
     parser.add_argument('--linear_num', default=512, type=int, help='feature dimension: 512 or default or 0 (linear=False)')
     parser.add_argument('--use_swin', action='store_true',help='swin is used')
@@ -404,7 +405,9 @@ if __name__ == '__main__':
 
     con = 'concat_' if opt.concat else ''
     to = 'to_' if opt.transform_ori else ''
-    res_name = 'adapted_'+seg+ con+to+ name+str(seed)+'.txt'
+    shuffle = 'shuffle_' if opt.shuffle else ''
+    simple = 'simple_' if opt.simple else ''
+    res_name = 'adapted_'+str(opt.alpha)+shuffle+simple+seg+ con+to+ name+str(seed)+'.txt'
     
     if opt.model_path is not None:
         res_name = opt.dataset_type+'_'+opt.model_path.split('/')[-2]+'_'+opt.model_path.split('/')[-1][:-4]+'_'+res_name

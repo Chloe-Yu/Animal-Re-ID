@@ -514,51 +514,63 @@ class tiger_cnn5_v1(nn.Module):
             x = self.model.backbone.layer0(x)
             x = self.model.backbone.layer1(x)
             x_l2 = self.model.backbone.layer2(x)
-            return x_l2
+            x_l3 = self.model.backbone.layer3(x_l2)
+            x_l4 = self.model.backbone.layer4(x_l3)
+
+           
+            return x_l4
         else:
             return self.forward(x)[1]
     
-    def test_adapt(self, x, dve_f, probe_dve_normed, shuffle = False, simple = False, probe_l2_norm= None):
+    def test_adapt(self, x, dve_f, probe_dve_normed, shuffle = False, simple = False, probe_l4= None, alpha = 1.0 ,softmax=False):
         #dve_f [B,64,56,56]-> [B,64,56*56] -> [B,56*56,64]
         #probe_dve_normed ([64,56,56] -> [64,56*56)
         B,D, H, W = dve_f.size()
         dve_f = dve_f.reshape(dve_f.shape[0],dve_f.shape[1],-1).transpose(1,2)
-        dve_f_norm = dve_f.div(torch.norm(dve_f,p=2, dim=1, keepdim=True).expand_as(dve_f))
+        dve_f_norm = dve_f.div(1e-12+torch.norm(dve_f,p=2, dim=1, keepdim=True).expand_as(dve_f))
         
         cos_sim = torch.matmul(dve_f_norm,probe_dve_normed) # [B,56*56,56*56]
         scores,positions = cos_sim.max(dim=2) # [B,56*56]
         #scores = cos_sim.sum(dim=2) # [B,56*56]
-        att = F.softmax(scores.view(B,1,-1), dim=2).view(B,1,H,W) # [B,1,56,56]
-        print('scores',scores)
-        print('att',att)
-        plt.imshow(att[0,0].detach().cpu().numpy())
-        plt.savefig('att.png')
+        if softmax:
+            att = F.softmax(scores.view(B,1,-1), dim=2).view(B,1,H,W) # [B,1,56,56]
+        else:
+            att = ((scores-scores.min(dim=1,keepdim=True)[0])/(scores.max(dim=1,keepdim=True)[0]-scores.min(dim=1,keepdim=True)[0])).view(B,1,H,W)
+            
+        # print('scores',scores)
+        # print('att',att.shape,att)
+        # plt.imshow(att[0,0].detach().cpu().numpy())
+        # plt.savefig('att.png')
         
         x = self.model.backbone.layer0(x)
         x = self.model.backbone.layer1(x)
         x_l2 = self.model.backbone.layer2(x) # [B,512,56,56]
+        x_l3 = self.model.backbone.layer3(x_l2)
+        x_l4 = self.model.backbone.layer4(x_l3)  # [B,2048,28,28]
+        x_l4 = F.interpolate(x_l4, size=x_l2.size()[2:], mode='bilinear', align_corners=True)
         
         if shuffle:
-            x_l2 = x_l2.reshape(B,-1,H*W).gather(2,positions.unsqueeze(1).expand(B,x_l2.shape[1],H*W))
-            x_l2 = x_l2.reshape(B,-1,H,W)
+            # x_l2 = x_l2.reshape(B,-1,H*W).gather(2,positions.unsqueeze(1).expand(B,x_l2.shape[1],H*W))
+            # x_l2 = x_l2.reshape(B,-1,H,W)
+            x_l4 = x_l4.reshape(B,-1,H*W).gather(2,positions.unsqueeze(1).expand(B,x_l4.shape[1],H*W))
+            x_l4 = x_l4.reshape(B,-1,H,W)
         
         if not simple:
-            x_l2 = torch.mul(att.expand_as(x_l2), x_l2)
-            x_l3 = self.model.backbone.layer3(x_l2)
-            x_l4 = self.model.backbone.layer4(x_l3)
+            
+            x_l4 = torch.mul(1 + alpha*att.expand_as(x_l4), x_l4)/(1.0+alpha)  # [B,2048,56,56]
             
             x = torch.mean(torch.mean(x_l4, dim=2), dim=2)
             x = self.classifier(x)
             
             return x[1]
         else:
-            assert probe_l2_norm is not None
-            # [B,512,56,56]
+            assert probe_l4 is not None
             
-            x_l2_norm = x_l2.div(torch.norm(x_l2, p=2, dim=1, keepdim=True).expand_as(x_l2))
+            x_l4_norm = x_l4.div(1e-12+torch.norm(x_l4, p=2, dim=1, keepdim=True).expand_as(x_l4)) # [B,2048,56,56]
             #probe_l2_norm = probe_l2.div(torch.norm(probe_l2, p=2, dim=1, keepdim=True).expand_as(probe_l2))
-            cos_dis = 1-torch.mul(x_l2_norm,probe_l2_norm.cuda()).sum(dim=1) # [B,56,56]
-            
+            probe_l4 = F.interpolate(probe_l4.unsqueeze(0), size=x_l2.size()[2:], mode='bilinear', align_corners=True)
+            probe_l4_norm = probe_l4.div(1e-12+torch.norm(probe_l4, p=2, dim=1, keepdim=True).expand_as(probe_l4))
+            cos_dis = 1-torch.mul(x_l4_norm,probe_l4_norm.cuda()).sum(dim=1) # [B,56,56]
             cos_dis = torch.mul(att.squeeze(1), cos_dis)#
             scores = cos_dis.sum(dim=1).sum(dim=1) # [B]
             return scores #negative sum of cosine similarity-> equivalent to cosine distance
