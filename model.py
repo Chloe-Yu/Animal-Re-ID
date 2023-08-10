@@ -457,13 +457,21 @@ class tiger_cnn5_64(tiger_cnn5_512):
 # loading pretrained model on dve: dve=True, model_path=PRETRAINED_MODEL_PATH
 ##################################
 class tiger_cnn5_v1(nn.Module):
-    def __init__(self, class_num,stride=1,droprate=0.5,linear_num=512,circle=True,use_posture=True,dve=False,stackeddve=False,smallscale=True):
+    def __init__(self, class_num,stride=1,droprate=0.5,linear_num=512,circle=True,use_posture=True,dve=False,stackeddve=False,smallscale=True,model_path=None):
         # dve means dve feature is needed whether for method1 or joint training
         super(tiger_cnn5_v1, self).__init__()
         self.dve = dve
         self.stacked = stackeddve
         
         self.model = tiger_cnn5_512(stride,smallscale=smallscale)
+        
+        if model_path is not None:
+            checkpoint = torch.load(model_path,map_location=torch.device('cpu'))
+            checkpoint['state_dict'] = {k[7:]:v for k,v in checkpoint['state_dict'].items() }
+            self.model.load_state_dict(checkpoint['state_dict'],strict=False)
+            print('successfully loaded dve cnn5')
+        
+        
         self.model.backbone.last_linear = nn.Sequential()
         
         if dve:
@@ -591,6 +599,33 @@ class tiger_cnn5_v1(nn.Module):
             p.requires_grad = is_training
 
 
+
+class ft_net_vit(nn.Module):
+
+    def __init__(self, class_num, droprate=0.5, return_feature=True, linear_num=512,use_posture=False):
+        super(ft_net_vit, self).__init__()
+        
+        model_ft = timm.create_model('vit_base_patch16_224_in21k', pretrained=True, drop_path_rate = 0.2)
+        # avg pooling to global pooling
+        #model_ft.avgpool = nn.AdaptiveAvgPool2d((1,1))
+        model_ft.head = nn.Sequential() # save memory
+        self.model = model_ft
+        self.avgpool = nn.AdaptiveAvgPool1d(1)
+        self.classifier = ClassBlock(768, class_num, droprate, linear=linear_num, return_f = return_feature, use_posture=use_posture)
+        print('Make sure timm > 0.6.0 and you can install latest timm version by pip install git+https://github.com/rwightman/pytorch-image-models.git')
+    def forward(self, x):
+        x = self.model.forward_features(x)
+        # swin is update in latest timm>0.6.0, so I add the following two lines.
+        
+        x = self.avgpool(x.permute((0,2,1)))
+        x = x.view(x.size(0), x.size(1))
+        
+        x = self.classifier(x)
+        return x
+    def fix_params(self, is_training=True):
+        for p in self.model.parameters():
+            p.requires_grad = is_training
+    
 
 # Define the swin_base_patch4_window7_224 Model
 # pytorch > 1.6
@@ -808,6 +843,40 @@ class seresnet_dve_2(nn.Module):
 
 
 
+# Define the ResNet50-based Model
+class ft_net(nn.Module):
+
+    def __init__(self, class_num=751, droprate=0.5, stride=2, circle=False, ibn=False, linear_num=512,use_posture=False):
+        super(ft_net, self).__init__()
+        model_ft = models.resnet50(pretrained=True)
+        if ibn==True:
+            model_ft = torch.hub.load('XingangPan/IBN-Net', 'resnet50_ibn_a', pretrained=True)
+        # avg pooling to global pooling
+        if stride == 1:
+            model_ft.layer4[0].downsample[0].stride = (1,1)
+            model_ft.layer4[0].conv2.stride = (1,1)
+        model_ft.avgpool = nn.AdaptiveAvgPool2d((1,1))
+        self.model = model_ft
+        self.circle = circle
+        self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle, use_posture=use_posture)
+
+    def forward(self, x):
+        x = self.model.conv1(x)
+        x = self.model.bn1(x)
+        x = self.model.relu(x)
+        x = self.model.maxpool(x)
+        x = self.model.layer1(x)
+        x = self.model.layer2(x)
+        x = self.model.layer3(x)
+        x = self.model.layer4(x)
+        x = self.model.avgpool(x)
+        x = x.view(x.size(0), x.size(1))
+        x = self.classifier(x)
+        return x
+    def fix_params(self, is_training=True):
+        for p in self.model.parameters():
+            p.requires_grad = is_training
+    
 
 class ft_net_64(nn.Module):
 
@@ -847,7 +916,9 @@ if __name__ == '__main__':
     f_dve = Variable(torch.randn(2, 64, 56, 56))
     probe_dve_normed = Variable(torch.randn(64, 56*56))
     probe_l2_norm = Variable(torch.randn(2,512,56,56))
-    model = tiger_cnn5_v1(101,dve=False)
+    model = ft_net_vit(101)
+    #print(model)
+    out = model(x)
     #model = seresnet_dve_2(101)
-    out = model.test_adapt(x,f_dve,probe_dve_normed,shuffle=True,simple=True,probe_l2_norm=probe_l2_norm)
+    #out = model.test_adapt(x,f_dve,probe_dve_normed,shuffle=True,simple=True,probe_l2_norm=probe_l2_norm)
     print(out[0])

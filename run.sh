@@ -4,7 +4,7 @@
 #SBATCH --nodes 1
 #SBATCH --ntasks 1
 
-#SBATCH --time 17:00:00
+#SBATCH --time 30:00:00
 #SBATCH --partition gpu
 
 #SBATCH --cpus-per-task 1
@@ -14,6 +14,7 @@
 
 #SBATCH --mail-user=yingxue.yu@epfl.ch 
 #SBATCH --mail-type=ALL
+
 
 #/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name swin_triplet_posture_segv3_ls_tiger --batch_size 32 --ent_cls --triplet --triplet_sampler --use_posture --use_swin --lr 0.01 --total_epoch 2   -d 0,1 --data_type tiger  --warm_epoch 3 --label_smoothing >./slurm/swin_triplet_posture_segv3_ls_tiger.out 2>&1 
 
@@ -195,6 +196,44 @@
 # /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_circle_posture_ls_tiger_correct_test_trans_batch --background  --triplet_sampler --test  --ent_cls --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 80 -d 0,1 --data_type tiger --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_ls_tiger_correct_test_trans_batch.out 2>&1
 # /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_circle_posture_ls_ele_correct_test_trans_batch --background --triplet_sampler --test --ent_cls --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 80 -d 0,1 --data_type elephant --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_ls_ele_correct_test_trans_batch.out 2>&1
 
-#436 437
-#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch_rereun --triplet_sampler --test --ent_cls --joint --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 100 -d 0,1 --data_type elephant --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch.out 2>&1
-/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch_666_rerun --seed 666 --triplet_sampler --test --ent_cls --joint --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 100 -d 0,1 --data_type elephant --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch.out 2>&1
+#600 605
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch_rereun_again --triplet_sampler --test --ent_cls --joint --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 140 -d 0,1 --data_type elephant --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch.out 2>&1
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_circle_posture_segv3_ls_ele_correct_test_batch_rerun --triplet_sampler --test --ent_cls --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 140 -d 0,1 --data_type elephant --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_ls_ele_correct_test_trans_batch.out 2>&1
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch_666_rerun --seed 666 --triplet_sampler --test --ent_cls --joint --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 100 -d 0,1 --data_type elephant --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch.out 2>&1
+
+#vit 97 98 99
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name vit_circle_posture_segv3_ls_yak_test_scaled_batch --use_vit --triplet_sampler --test --ent_cls  --batch_size 30 --circle --lr 0.01 --total_epoch 100 -d 0,1 --data_type yak --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0  >./slurm/vit_circle_posture_ls_yak_test_batch.out 2>&1
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name vit_circle_posture_segv3_ls_tiger_test_scaled_batch --use_vit --triplet_sampler --test --ent_cls  --batch_size 30 --circle --lr 0.01 --total_epoch 100 -d 0,1 --data_type tiger --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0  >./slurm/vit_circle_posture_ls_yak_test_batch.out 2>&1
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name vit_circle_posture_segv3_ls_ele_test_scaled_batch --use_vit --triplet_sampler --test --ent_cls  --batch_size 30 --circle --lr 0.01 --total_epoch 180 -d 0,1 --data_type elephant --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0  >./slurm/vit_circle_posture_ls_yak_test_batch.out 2>&1
+# #resent 00 01 02
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name resnet50_circle_posture_segv3_ls_yak_test_scaled_batch --triplet_sampler --test --ent_cls  --batch_size 30 --circle --lr 0.01 --total_epoch 100 -d 0,1 --data_type yak --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0  >./slurm/resnet50_circle_posture_segv3_ls_yak_test_scaled_batch.out 2>&1
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name resnet50_circle_posture_segv3_ls_tiger_test_scaled_batch  --triplet_sampler --test --ent_cls  --batch_size 30 --circle --lr 0.01 --total_epoch 100 -d 0,1 --data_type tiger --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0  >./slurm/resnet50_circle_posture_segv3_ls_yak_test_scaled_batch.out 2>&1
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name resnet50_circle_posture_segv3_ls_ele_test_scaled_batch  --triplet_sampler --test --ent_cls  --batch_size 30 --circle --lr 0.01 --total_epoch 180 -d 0,1 --data_type elephant --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0  >./slurm/resnet50_circle_posture_segv3_ls_yak_test_scaled_batch.out 2>&1
+
+# #ablation 04..09
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_segv3_ablation_none  --test --ent_cls --use_posture --batch_size 30  --use_cnn5_v1 --lr 0.01 --total_epoch 120 -d 0,1 --data_type tiger --warm_epoch 3  --label_smoothing >./slurm/cnn5_v1_segv3_ablation_none_tiger.out 2>&1
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_segv3_ablation_circle  --test --circle --circle_loss_scale 2.0  --ent_cls --use_posture --batch_size 30  --use_cnn5_v1 --lr 0.01 --total_epoch 120 -d 0,1 --data_type tiger --warm_epoch 3  --label_smoothing >./slurm/cnn5_v1_segv3_ablation_circle.out 2>&1
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_segv3_ablation_circle_pretrain  --test --circle --circle_loss_scale 2.0  --ent_cls --batch_size 30  --use_cnn5_v1 --lr 0.01 --total_epoch 120 -d 0,1 --data_type tiger --warm_epoch 3  --label_smoothing --model_path /home/yinyu/Thesis/cnn5-64-epoch120.pth >./slurm/cnn5_v1_segv3_ablation_circle_pretrain.out 2>&1
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_segv3_ablation_circle_dve --joint --circle_loss_scale 2.0 --dve_loss_scale 0.2  --test --circle --ent_cls --use_posture --batch_size 30  --use_cnn5_v1 --lr 0.01 --total_epoch 120 -d 0,1 --data_type tiger --warm_epoch 3  --label_smoothing >./slurm/cnn5_v1_segv3_ablation_circle_dve.out 2>&1
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_segv3_ablation_circle_batch  --test --triplet_sampler --circle --circle_loss_scale 2.0  --ent_cls --use_posture --batch_size 30  --use_cnn5_v1 --lr 0.01 --total_epoch 80 -d 0,1 --data_type tiger --warm_epoch 3  --label_smoothing >./slurm/cnn5_v1_segv3_ablation_circle_batch.out 2>&1
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_segv3_ablation_circle_dve_batch --joint  --triplet_sampler --circle_loss_scale 2.0 --dve_loss_scale 0.2  --test --circle --ent_cls --use_posture --batch_size 30  --use_cnn5_v1 --lr 0.01 --total_epoch 80 -d 0,1 --data_type tiger --warm_epoch 3  --label_smoothing >./slurm/cnn5_v1_segv3_ablation_circle_dve_batch.out 2>&1
+
+#step epoch = 60 806
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch_rereun_again2 --triplet_sampler --test --ent_cls --joint --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 140 -d 0,1 --data_type elephant --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch.out 2>&1
+
+#cnn5_v1_circle_posture_segv3_ls_tiger_dve_joint_correct_scaled_test_batch 35,37,38    32..34
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_circle_posture_segv3_ls_tiger_dve_joint_correct_scaled_test_batch_100 --triplet_sampler --test --ent_cls --joint --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 100 -d 0,1 --data_type tiger --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_segv3_ls_tiger_dve_joint_correct_scaled_test_batch.out 2>&1
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name vit_circle_posture_segv3_ls_tiger_test_scaled_batch_80 --use_vit --triplet_sampler --test --ent_cls  --batch_size 30 --circle --lr 0.01 --total_epoch 80 -d 0,1 --data_type tiger --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0  >./slurm/vit_circle_posture_ls_yak_test_batch.out 2>&1
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name resnet50_circle_posture_segv3_ls_tiger_test_scaled_batch_80  --triplet_sampler --test --ent_cls  --batch_size 30 --circle --lr 0.01 --total_epoch 80 -d 0,1 --data_type tiger --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0  >./slurm/resnet50_circle_posture_segv3_ls_yak_test_scaled_batch.out 2>&1
+
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_circle_posture_segv3_ls_yak_dve_joint_correct_scaled_test_batch_100 --triplet_sampler --test --ent_cls --joint --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 100 -d 0,1 --data_type yak --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_segv3_ls_yak_dve_joint_correct_scaled_test_batch_100.out 2>&1
+# /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name vit_circle_posture_segv3_ls_yak_test_scaled_batch_80 --use_vit --triplet_sampler --test --ent_cls  --batch_size 30 --circle --lr 0.01 --total_epoch 80 -d 0,1 --data_type yak --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0  >./slurm/vit_circle_posture_ls_yak_test_batch.out 2>&1
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name resnet50_circle_posture_segv3_ls_yak_test_scaled_batch_80  --triplet_sampler --test --ent_cls  --batch_size 30 --circle --lr 0.01 --total_epoch 80 -d 0,1 --data_type yak --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0  >./slurm/resnet50_circle_posture_segv3_ls_yak_test_scaled_batch.out 2>&1
+#17 18
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_circle_posture_ls_yak_dve_joint_correct_scaled_test_batch_complete --background --triplet_sampler --test --ent_cls --joint --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 80 -d 0,1 --data_type yak --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_ls_yak_dve_joint_correct_scaled_test_batch.out 2>&1
+/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name cnn5_v1_circle_posture_ls_ele_dve_joint_correct_scaled_test_batch_complete --background --triplet_sampler --test --ent_cls --joint --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 80 -d 0,1 --data_type elephant --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_ls_yak_dve_joint_correct_scaled_test_batch.out 2>&1
+
+
+cnn5_v1_circle_posture_segv3_ls_yak_dve_joint_all_scaled_attn
+seresnet_dve_att_circle_posture_segv3_ls_yak

@@ -1,5 +1,5 @@
 import argparse
-from model import  ft_net_swin,seresnet_dve_1,tiger_cnn5_v1,tiger_cnn5_64,ft_net_64,seresnet_dve_2,seresnet_dve_1_5
+from model import  ft_net_swin,seresnet_dve_1,tiger_cnn5_v1,tiger_cnn5_64,ft_net_64,seresnet_dve_2,seresnet_dve_1_5,ft_net,ft_net_vit
 from utils import fliplr,init_log,save_network
 import os
 from shutil import copyfile
@@ -316,6 +316,8 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     if opt.data_type == 'tiger':
                         test_metric_map = test_metric["result"][0]["public_split"]['mmAP']
                         test_metric_top1 = test_metric["result"][0]["public_split"]['top-1(cross_cam)']
+                        test_metric_top1_s = test_metric["result"][0]["public_split"]['top-1(single_cam)']
+                        writer.add_scalar('test_Rank@1_single',test_metric_top1_s, epoch)
                     else:
                         test_metric_map = test_metric['mAP']
                         test_metric_top1 = test_metric['Rank@1']
@@ -334,6 +336,8 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                             if datatype == 'tiger':
                                 test_metric_map = test_metric["result"][0]["public_split"]['mmAP']
                                 test_metric_top1 = test_metric["result"][0]["public_split"]['top-1(cross_cam)']
+                                test_metric_top1_s = test_metric["result"][0]["public_split"]['top-1(single_cam)']
+                                writer.add_scalar(datatype+'_test_transfer_Rank@1_single',test_metric_top1_s, epoch)
                             else:
                                 test_metric_map = test_metric['mAP']
                                 test_metric_top1 = test_metric['Rank@1']
@@ -400,6 +404,7 @@ if __name__ =='__main__':
     parser.add_argument('--stride', default=1, type=int, help='stride')
     parser.add_argument('--droprate', default=0.5, type=float, help='drop rate')
     parser.add_argument('--use_swin', action='store_true', help='use swin transformer 224x224' )
+    parser.add_argument('--use_vit', action='store_true', help='use vit transformer 224x224' )
     parser.add_argument('--use_resnet', action='store_true', help='use resnet 64 dve' )
     parser.add_argument('--use_resnet_complete', action='store_true', help='use resnet_dve_complete' )
     parser.add_argument('--use_cnn5_v1', action='store_true', help='use tiger_cnn5_v1' )
@@ -564,9 +569,11 @@ if __name__ =='__main__':
     
     if opt.use_cnn5_v1:
         model = tiger_cnn5_v1(numClasses,stride = opt.stride,linear_num=opt.linear_num,circle=return_feature,use_posture=opt.use_posture
-                              ,dve=opt.joint or opt.joint_all,stackeddve=opt.stacked, smallscale=not opt.ori_stride)
+                              ,dve=opt.joint or opt.joint_all,stackeddve=opt.stacked, smallscale=not opt.ori_stride, model_path=opt.model_path if not opt.way1_dve else None)
     elif opt.use_swin:
         model = ft_net_swin(numClasses, opt.droprate, return_feature = return_feature, linear_num=opt.linear_num, use_posture=opt.use_posture)
+    elif opt.use_vit:
+        model = ft_net_vit(numClasses, opt.droprate, return_feature = return_feature, linear_num=opt.linear_num, use_posture=opt.use_posture)
     elif opt.way1_dve:
         if opt.version == '1':
             model = seresnet_dve_1(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num,dve_dim=64,use_posture=opt.use_posture)
@@ -577,7 +584,7 @@ if __name__ =='__main__':
         else:
             sys.exit('way1 model is not specified.')
     else:
-        sys.exit('model is not specified.')
+        model = ft_net(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num, use_posture=opt.use_posture)
     print(model)
     
     
@@ -592,19 +599,19 @@ if __name__ =='__main__':
         base_params = list(map(id, model.get_base_params()))
         extra_params = list(filter(lambda p: id(p) not in base_params, model.parameters()))
         base_params = model.get_base_params()
-    elif opt.use_swin:
+    else:
         base_params = list(map(id, model.model.parameters()))
         extra_params = list(filter(lambda p: id(p) not in base_params, model.parameters()))
         base_params = model.model.parameters()
-    else:
-        sys.exit('Invalid Condition.')
+    
         
     optimizer_ft = optim_name([
                     {'params': base_params, 'lr': 0.1*opt.lr},
                     {'params': extra_params, 'lr': opt.lr}
                 ], weight_decay=opt.weight_decay, momentum=0.9, nesterov=True)
     
-    exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer_ft, step_size=opt.total_epoch*2//3, gamma=0.1)
+    
+    exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer_ft, step_size=min(opt.total_epoch*2//3,60), gamma=0.1)
     
     if opt.label_smoothing:
         criterion = LabelSmoothingCrossEntropy(smoothing=0.1)

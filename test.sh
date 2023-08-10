@@ -66,9 +66,9 @@
 
 # /home/yinyu/miniconda3/envs/thesis/bin/python test_adapt.py --concat --name tiger_cnn5_v1  --alpha 0.5 -d tiger -mt yak -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_416_test/net_last.pth  --gpu_ids 0 -r /home/yinyu/Thesis/resnet-64-epoch120.pth
 # /home/yinyu/miniconda3/envs/thesis/bin/python test_adapt.py --concat --name tiger_cnn5_v1  --alpha 0.2 -d tiger -mt yak -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_416_test/net_last.pth  --gpu_ids 0 -r /home/yinyu/Thesis/resnet-64-epoch120.pth
-/home/yinyu/miniconda3/envs/thesis/bin/python test_adapt.py --concat --name tiger_cnn5_v1  --alpha 0.25 -d h_yak -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_416_test/net_last.pth  --gpu_ids 0 -r /home/yinyu/Thesis/resnet-64-epoch120.pth
-/home/yinyu/miniconda3/envs/thesis/bin/python test_adapt.py --concat --name tiger_cnn5_v1  --alpha 1.0 -d h_yak -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_416_test/net_last.pth  --gpu_ids 0 -r /home/yinyu/Thesis/resnet-64-epoch120.pth
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --sample --concat --name tiger_cnn5_v1   -d h_yak -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_416_test/net_last.pth  --gpu_ids 0 -r /home/yinyu/Thesis/resnet-64-epoch120.pth
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_adapt.py --concat --name tiger_cnn5_v1  --alpha 0.25 -d h_yak -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_416_test/net_last.pth  --gpu_ids 0 -r /home/yinyu/Thesis/resnet-64-epoch120.pth
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_adapt.py --concat --name tiger_cnn5_v1  --alpha 1.0 -d h_yak -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_416_test/net_last.pth  --gpu_ids 0 -r /home/yinyu/Thesis/resnet-64-epoch120.pth
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --sample --concat --name tiger_cnn5_v1   -d h_yak -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_416_test/net_last.pth  --gpu_ids 0 -r /home/yinyu/Thesis/resnet-64-epoch120.pth
 
 #cnn5_v1_circle_posture_segv3_ls_tiger_correct_test_trans_batch
 #/home/yinyu/miniconda3/envs/thesis/bin/python test.py --sample --concat --name tiger_cnn5_v1    -d elephant -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_416_test/net_last.pth  --gpu_ids 0 -r /home/yinyu/Thesis/resnet-64-epoch120.pth 
@@ -86,3 +86,15 @@
 # /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_test_trans/net_last.pth  --gpu_ids 0 --transform_ori 
 # /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt yak -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_test_trans/net_last.pth  --gpu_ids 0 --transform_ori
 # /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_test_trans/net_last.pth  --gpu_ids 0 --transform_ori
+
+
+/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_correct_test_trans_batch/net_last.pth  --gpu_ids 0 --use_ori
+/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_dve_joint_correct_scaled_test_batch/net_last.pth  --gpu_ids 0 --use_ori --joint
+
+
+/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_none/net_last.pth  --gpu_ids 0
+/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle/net_last.pth  --gpu_ids 0
+/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_pretrain/net_last.pth  --gpu_ids 0 
+/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_dve/net_last.pth --joint --gpu_ids 0
+/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_batch/net_last.pth  --gpu_ids 0
+/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_dve_batch/net_last.pth  --gpu_ids 0 --joint
