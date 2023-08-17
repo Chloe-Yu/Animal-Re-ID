@@ -323,7 +323,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                         test_metric_top1 = test_metric['Rank@1']
                     writer.add_scalar('test_Rank@1',test_metric_top1, epoch)
                     writer.add_scalar('test_mAP',test_metric_map, epoch)
-                    if test_metric_map > best_ap:
+                    if test_metric_map > best_ap and opt.test_freq == 1:
                         best_ap = test_metric_map
                         save_network(model,epoch,name,best=True)
                     
@@ -611,7 +611,7 @@ if __name__ =='__main__':
                 ], weight_decay=opt.weight_decay, momentum=0.9, nesterov=True)
     
     
-    exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer_ft, step_size=min(opt.total_epoch*2//3,60), gamma=0.1)
+    exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer_ft, step_size=opt.total_epoch*2//3, gamma=0.1)
     
     if opt.label_smoothing:
         criterion = LabelSmoothingCrossEntropy(smoothing=0.1)

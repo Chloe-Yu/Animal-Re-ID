@@ -88,13 +88,93 @@
 # /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_test_trans/net_last.pth  --gpu_ids 0 --transform_ori
 
 
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_correct_test_trans_batch/net_last.pth  --gpu_ids 0 --use_ori
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_dve_joint_correct_scaled_test_batch/net_last.pth  --gpu_ids 0 --use_ori --joint
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_correct_test_trans_batch/net_last.pth  --gpu_ids 0 --use_ori
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_dve_joint_correct_scaled_test_batch/net_last.pth  --gpu_ids 0 --use_ori --joint
 
 
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_none/net_last.pth  --gpu_ids 0
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle/net_last.pth  --gpu_ids 0
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_pretrain/net_last.pth  --gpu_ids 0 
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_dve/net_last.pth --joint --gpu_ids 0
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_batch/net_last.pth  --gpu_ids 0
-/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_dve_batch/net_last.pth  --gpu_ids 0 --joint
+#/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_none/net_last.pth  --gpu_ids 0
+#/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle/net_last.pth  --gpu_ids 0
+#/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_pretrain/net_last.pth  --gpu_ids 0 
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_dve/net_last.pth --joint --gpu_ids 0
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_batch/net_last.pth  --gpu_ids 0
+#/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_dve_batch/net_last.pth  --gpu_ids 0 --joint
+
+#/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_dve_joint_correct_scaled_test_batch/net_last.pth  --gpu_ids 0 --joint
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_correct_test_trans_batch/net_last.pth  --gpu_ids 0 
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d h_yak -mt yak -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_correct_test_trans_batch/net_last.pth  --gpu_ids 0 
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d elephant -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_correct_test_trans_batch/net_last.pth  --gpu_ids 0 
+
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name resnet   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/resnet50_circle_posture_segv3_ls_tiger_test_scaled_batch/net_last.pth  --gpu_ids 0
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name resnet   -d h_yak -mt yak -m /home/yinyu/Thesis/animal-reid/model/resnet50_circle_posture_segv3_ls_yak_test_scaled_batch/net_last.pth  --gpu_ids 0
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name resnet   -d elephant -mt elephant -m /home/yinyu/Thesis/animal-reid/model/resnet50_circle_posture_segv3_ls_ele_test_scaled_batch/net_last.pth  --gpu_ids 0
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name vit   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/vit_circle_posture_segv3_ls_tiger_test_scaled_batch_80/net_last.pth  --gpu_ids 0
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name vit   -d h_yak -mt yak -m /home/yinyu/Thesis/animal-reid/model/vit_circle_posture_segv3_ls_yak_test_scaled_batch/net_last.pth  --gpu_ids 0
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name vit   -d elephant -mt elephant -m /home/yinyu/Thesis/animal-reid/model/vit_circle_posture_segv3_ls_ele_test_scaled_batch/net_last.pth  --gpu_ids 0
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_dve_joint_correct_scaled_test_batch/net_last.pth  --gpu_ids 0 --joint --use_ori
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_correct_test_trans_batch/net_last.pth  --gpu_ids 0  --use_ori
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d elephant -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_ele_correct_test_trans_batch/net_last.pth  --gpu_ids 0  --use_ori
+
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_none_nopos/net_last.pth  --gpu_ids 0 --no_posture
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_nopos/net_last.pth  --gpu_ids 0 --no_posture
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_only/net_last.pth  --gpu_ids 0 --no_posture
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_dve_batch/net_last.pth  --gpu_ids 0 --joint
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_dve_joint_correct_scaled_test_batch/net_last.pth  --gpu_ids 0 --joint
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d h_yak -mt yak -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_dve_joint_correct_scaled_test_batch/net_last.pth  --gpu_ids 0 --joint
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d elephant -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch_rereun/net_last.pth  --gpu_ids 0 --joint
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_correct_test_trans_batch/net_last.pth  --gpu_ids 0 
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d h_yak -mt yak -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_correct_test_trans_batch/net_last.pth  --gpu_ids 0 
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d elephant -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_correct_test_trans_batch/net_last.pth  --gpu_ids 0 
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name resnet   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/resnet50_circle_posture_segv3_ls_tiger_test_scaled_batch/net_last.pth  --gpu_ids 0
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name resnet   -d h_yak -mt yak -m /home/yinyu/Thesis/animal-reid/model/resnet50_circle_posture_segv3_ls_yak_test_scaled_batch/net_last.pth  --gpu_ids 0
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name resnet   -d elephant -mt elephant -m /home/yinyu/Thesis/animal-reid/model/resnet50_circle_posture_segv3_ls_ele_test_scaled_batch/net_last.pth  --gpu_ids 0
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name vit   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/vit_circle_posture_segv3_ls_tiger_test_scaled_batch_80/net_last.pth  --gpu_ids 0
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name vit   -d h_yak -mt yak -m /home/yinyu/Thesis/animal-reid/model/vit_circle_posture_segv3_ls_yak_test_scaled_batch/net_last.pth  --gpu_ids 0
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name vit   -d elephant -mt elephant -m /home/yinyu/Thesis/animal-reid/model/vit_circle_posture_segv3_ls_ele_test_scaled_batch/net_last.pth  --gpu_ids 0
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_dve_joint_correct_scaled_test_batch/net_last.pth  --gpu_ids 0 --use_ori --joint
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_correct_test_trans_batch/net_last.pth  --gpu_ids 0 --use_ori
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d h_yak -mt yak -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_yak_correct_test_trans_batch/net_last.pth  --gpu_ids 0 --use_ori
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d elephant -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_ele_correct_test_trans_batch/net_last.pth  --gpu_ids 0 --use_ori
+
+#/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_pos/net_last.pth  --gpu_ids 0
+
+#/home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_segv3_ablation_circle_dve_batch/net_last.pth  --gpu_ids 0 --joint
+#/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d all -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_dve_joint_correct_scaled_test_batch/net_last.pth  --gpu_ids 0 --joint
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d all -mt yak -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_dve_joint_correct_scaled_test_batch/net_last.pth  --gpu_ids 0 --joint
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d all -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch_rereun/net_last.pth  --gpu_ids 0 --joint
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt yak -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_yak_dve_joint_correct_scaled_test_batch/net_last.pth  --gpu_ids 0 --joint
+# /home/yinyu/miniconda3/envs/thesis/bin/python test.py --concat --name tiger_cnn5_v1   -d all -mt elephant -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_ele_dve_joint_correct_scaled_test_batch_rereun/net_last.pth  --gpu_ids 0 --joint
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_correct_test_trans_batch/net_last.pth  --gpu_ids 0 --use_ori
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_correct_test_trans_batch/net_last.pth  --gpu_ids 0 
+
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_correct_test_trans_batch/net_last.pth  --gpu_ids 0 
+# /home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_correct_test_trans_batch/net_last.pth  --gpu_ids 0 --use_ori
+
+
+/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_dve_joint_correct_scaled_test_batch_666/net_last.pth  --gpu_ids 0 --joint
+/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_dve_joint_correct_scaled_test_batch_416/net_last.pth  --gpu_ids 0 --joint
+/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_correct_test_trans_batch_416/net_last.pth  --gpu_ids 0 
+/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_segv3_ls_tiger_correct_test_trans_batch_666/net_last.pth  --gpu_ids 0 
+/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name vit   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/vit_circle_posture_segv3_ls_tiger_test_scaled_batch_80_416/net_last.pth  --gpu_ids 0
+/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name vit   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/vit_circle_posture_segv3_ls_tiger_test_scaled_batch_80_666/net_last.pth  --gpu_ids 0
+/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name resnet   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/resnet50_circle_posture_segv3_ls_tiger_test_scaled_batch_416/net_last.pth  --gpu_ids 0
+/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name resnet   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/resnet50_circle_posture_segv3_ls_tiger_test_scaled_batch_666/net_last.pth  --gpu_ids 0
+
+/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_dve_joint_correct_scaled_test_batch_416/net_last.pth  --gpu_ids 0 --joint --use_ori
+/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_dve_joint_correct_scaled_test_batch_666/net_last.pth  --gpu_ids 0 --joint --use_ori
+/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_correct_test_trans_batch_416/net_last.pth  --gpu_ids 0 --use_ori
+/home/yinyu/miniconda3/envs/thesis/bin/python test_rerank.py --concat --name tiger_cnn5_v1   -d tiger -mt tiger -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_tiger_correct_test_trans_batch_666/net_last.pth  --gpu_ids 0 --use_ori

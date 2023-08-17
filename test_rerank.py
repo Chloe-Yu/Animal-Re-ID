@@ -15,7 +15,8 @@ import json
 import sys
 from utils import load_network,fliplr
 from dataloader import load_gallery_probe_data
-from metric import evaluate_CMC
+from metric import evaluate_rerank
+from re_ranking import re_ranking
 sys.path.insert(0,os.path.join(os.path.dirname(__file__), '../'))
 
 
@@ -155,7 +156,24 @@ def eval_on_one(model,dve,dataset_type,linear_num,concat,seg=True,batch_size=32,
             query_label = query_label[10:40]
             query_names = query_names[10:40]
     
-    CMC,ap,q_g_dist = evaluate_CMC(query_feature, query_label, gallery_feature, gallery_label,remove_closest,'cos',True)
+    q_g_dist = np.dot(query_feature, np.transpose(gallery_feature))
+    q_q_dist = np.dot(query_feature, np.transpose(query_feature))
+    g_g_dist = np.dot(gallery_feature, np.transpose(gallery_feature))
+    re_rank = re_ranking(q_g_dist, q_q_dist, g_g_dist)
+    
+    CMC = torch.IntTensor(len(gallery_label)).zero_()
+    ap = 0.0
+    for i in range(len(query_label)):
+        ap_tmp, CMC_tmp = evaluate_rerank(re_rank[i,:],query_label[i],gallery_label,remove_closest)
+        if CMC_tmp[0]==-1:
+            continue
+        CMC = CMC + CMC_tmp
+        ap += ap_tmp
+        #print(i, CMC_tmp[0])
+        
+    CMC = CMC.float()
+    CMC = CMC/len(query_label)
+    #CMC,ap,q_g_dist = evaluate_CMC(query_feature, query_label, gallery_feature, gallery_label,remove_closest,'cos',True)
     
      
     if dataset_type == 'tiger':
@@ -165,7 +183,7 @@ def eval_on_one(model,dve,dataset_type,linear_num,concat,seg=True,batch_size=32,
             tmp = {}
             image_name = query_names[i]
 
-            index =np.argsort(q_g_dist[i, :])
+            index =np.argsort(re_rank[i, :])
 
             tmp['query_id'] = int(image_name.rstrip('.jpg'))
             p = 0
@@ -226,7 +244,8 @@ if __name__ == '__main__':
     parser.add_argument('--stacked', action='store_true', help='stack last 3 layers of backbone for dve loss.' )
     parser.add_argument('--sample', action='store_true', help='sample 50 query' )
     parser.add_argument('--no_posture', action='store_true', help='posture data wa not used for training' )
-
+    parser.add_argument('--rerank', action='store_true', help='applie re_ranking.' )
+   
     opt = parser.parse_args()
     ###load config###
     
@@ -348,7 +367,7 @@ if __name__ == '__main__':
         res_name = opt.dataset_type+'_untrained_'+res_name
     
     metric['opt'] = opt_dic
-    result_metric = open('./result/'+res_name,'w')
+    result_metric = open('./result/reranked_'+res_name,'w')
     #json.dump(metric, open('./result/'+res_name[:-3]+'json','w'))
     
     metric_str = "\n".join([k+': '+str(v) for k,v in metric.items()])

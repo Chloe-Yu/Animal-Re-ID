@@ -1,0 +1,2 @@
+elephant: {'Rank@1': 0.2789473831653595, 'Rank@5': 0.3684210479259491, 'Rank@10': 0.4289473593235016, 'mAP': 0.11486423690305693}
+opt: {'model_type': 'elephant', 'dataset_type': 'elephant', 'model_path': '/home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_ele_correct_test_trans_batch/net_last.pth', 'gpu_ids': '0', 'batchsize': 32, 'linear_num': 512, 'use_swin': False, 'use_ori': True, 'way1_dve': False, 'name': 'tiger_cnn5_v1', 'concat': True, 'ori_dim': False, 'ori_stride': False, 'transform_ori': False, 'resume': None, 'seed': '0', 'joint': False}

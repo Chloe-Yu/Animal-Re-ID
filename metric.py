@@ -109,3 +109,4 @@ def evaluate_rerank(score, ql, gl,remove_closest,invalid_index=None):
     else:
         return -1, [-1]
     return ap,CMC_tmp
+
