@@ -102,7 +102,8 @@ def get_isnet_masks():
     for name in dirs:
         if name[0]!='.':
             for img_name in os.listdir(input_path  + name):
-                get_isnet_mask(name,img_name,input_path,None,session,output_path=output_path)
+                if img_name[0]!='.' and img_name.endswith('.jpg'):
+                    get_isnet_mask(name,img_name,input_path,None,session,output_path=output_path)
 
 
 
