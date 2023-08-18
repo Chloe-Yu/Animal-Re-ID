@@ -1,2 +1,0 @@
-elephant: {'Rank@1': 0.3684210479259491, 'Rank@5': 0.5789473652839661, 'Rank@10': 0.6947368383407593, 'mAP': 0.20623386413309197}
-opt: {'model_type': 'elephant', 'dataset_type': 'elephant', 'model_path': '/home/yinyu/Thesis/animal-reid/model/vit_circle_posture_segv3_ls_ele_test_scaled_batch/net_last.pth', 'gpu_ids': '0', 'batchsize': 32, 'linear_num': 512, 'use_swin': False, 'use_ori': False, 'way1_dve': False, 'name': 'vit', 'concat': True, 'ori_dim': False, 'ori_stride': False, 'transform_ori': False, 'resume': None, 'seed': '0', 'joint': False}
