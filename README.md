@@ -60,13 +60,14 @@ The the data folder structure should be
  
 run
 ```
-python pre_data.py
+cd preprocess
+python prep_data.py
 ```
 to move the train, val, test data in place.
 
 ### Background Removal
 
-To get the masked out images, run
+To get the masked out images, first download the pretrained sam model [sam_vit_h_4b8939.pth](https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth) and put it under preprocess/, then run
 ```
 python3 mask_img.py
 ```

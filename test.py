@@ -102,14 +102,14 @@ def eval_on_one(model,dataset_type,linear_num,concat,seg=True,batch_size=32):
                         'debug':'./datalist/debug_ele_train.txt'}
     
     data_dirs = {
-            'tiger_ori':'./data/tiger/test_original',
-            'tiger_seg':'./data/tiger/tiger_test_isnet_seg',
-            'elephant_seg':'./data/ele_test_v3_seg',
-            'elephant_ori':'./data/elephant',
-            'h_yak_seg':'./data/yak_test_seg_isnet_pp',
-            'yak_seg':'./data/yak_test_seg_isnet_pp',
-            'h_yak_ori':'./data/val',
-            'yak_ori':'./data/val'
+            'tiger_ori':'./data/tiger/test',
+            'tiger_seg':'./data/tiger/tiger_test_masked',
+            'elephant_seg':'./data/elephant_test_masked',
+            'elephant_ori':'./data/elephant_test',
+            'h_yak_seg':'./data/yak_test_masked',
+            'yak_seg':'./data/yak_test_masked',
+            'h_yak_ori':'./data/yak_test',
+            'yak_ori':'./data/yak_test'
         }
 
     

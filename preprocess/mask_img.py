@@ -57,6 +57,9 @@ def get_isnet_masks():
     session = new_session(model_name)
     path = os.getcwd()
     parent = os.path.dirname(path)
+    if not os.path.isdir(parent+"/data/ISNetMask/"):
+        os.mkdir(parent+"/data/ISNetMask/")
+        
     for split in ['train/','val/']:
         input_path = parent+"/data/Animal/"+split
         mask_dir = parent+"/data/ISNetMask/"+split
@@ -68,7 +71,7 @@ def get_isnet_masks():
             #get isnet masks for tiger and elephant.
             if dir[0]!='.':
                 for img_name in os.listdir(input_path+'/'+ dir):
-                    if img_name[0]!='.':
+                    if img_name[0]!='.' and img_name.endswith('.jpg'):
                             get_isnet_mask(dir,img_name,input_path,mask_dir,session)
     #elephant test
     input_path = parent+"/data/elephant_test/"
@@ -77,7 +80,7 @@ def get_isnet_masks():
         os.mkdir(mask_dir)
         
     for name in os.listdir(input_path):
-        if name[0]!='.':
+        if name[0]!='.' and name.endswith('.jpg'):
             get_isnet_mask('',name,input_path,mask_dir,session)
     # tiger test
     input_path = parent+"/data/tiger/test/"
@@ -86,7 +89,7 @@ def get_isnet_masks():
         os.mkdir(mask_dir)
         
     for name in os.listdir(input_path):
-        if name[0]!='.':
+        if name[0]!='.' and name.endswith('.jpg'):
             get_isnet_mask('',name,input_path,mask_dir,session)
             
     #yak test
@@ -292,6 +295,9 @@ def get_joint_masks():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     sam.to(device=device)
     
+    path = os.getcwd()
+    parent = os.path.dirname(path)
+    
     output_path = parent+"/data/Animal-masked/"
     if not os.path.isdir(output_path):
         os.mkdir(output_path)
@@ -309,8 +315,7 @@ def get_joint_masks():
     get_yak_joint_masks(predictor)
     
     #clean temporary masks"
-    path = os.getcwd()
-    parent = os.path.dirname(path)
+    
     shutil.rmtree(parent+"/data/ISNetMask/")
     shutil.rmtree(parent+"/data/tiger_isnet_mask/")
     shutil.rmtree(parent+"/data/elephant_isnet_mask/")
