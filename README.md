@@ -108,5 +108,17 @@ python test.py --concat --name tiger_cnn5_v1 -d tiger -mt tiger --gpu_ids 0,1 --
 ```
 
 
+## Related Repos
+
+
+[Person_reID_baseline_pytorch](https://github.com/layumi/Person_reID_baseline_pytorch)
+
+[AmurTigerReID](https://github.com/liuning-scu-cn/AmurTigerReID)
+
+[ATRWEvalScript](https://github.com/cvwc2019/ATRWEvalScript)
+
+
+
+
 
 

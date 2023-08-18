@@ -1,13 +1,6 @@
 # -*- coding: utf-8 -*
 
-#-------------------------------------------------------------------------------
-# Author: LiuNing
-# Contact: 2742229056@qq.com
-# Software: PyCharm
-# File: adaptive_avgmax_pool.py
-# Time: 7/30/19 8:58 PM
-# Description:
-#-------------------------------------------------------------------------------
+# from https://github.com/liuning-scu-cn/AmurTigerReID
 
 
 """ PyTorch selectable adaptive pooling
