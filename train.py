@@ -1,20 +1,18 @@
 import argparse
-from model import  ft_net_swin,seresnet_dve_1,tiger_cnn5_v1,tiger_cnn5_64,ft_net_64,seresnet_dve_2,seresnet_dve_1_5,ft_net,ft_net_vit
+from model import tiger_cnn5_v1,ft_net,ft_net_vit
 from utils import fliplr,init_log,save_network
 import os
 from shutil import copyfile
 import torch
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from torchvision import transforms
 import torch.nn as nn
 import random
 import numpy as np
 import torch.optim as optim
-from dataloader import train_collate,load_direction_gallery_probe,load_triplet_direction_gallery_probe,load_dve_pair,JointAllBatchSampler
+from dataloader import train_collate,load_direction_gallery_probe,load_triplet_direction_gallery_probe
 from tps import Warper
 import time
-import sys
 from label_smoothing import LabelSmoothingCrossEntropy
 from circle_loss import CircleLoss, convert_label_to_similarity
 from dve_utils import dense_correlation_loss_dve,LossWrapper
@@ -25,14 +23,12 @@ from pytorch_metric_learning import losses, miners
 from test import eval_on_one
 
 
-def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writer=None,way1_dve=None):
+def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writer=None):
     best_ap = 0.0
     warm_up = 0.01 # We start from the 0.01*lrRate, to be consistent with PGCFL
     dataset_sizes = {'train': len(dataloaders['train'].dataset),'val': len(dataloaders['val'].dataset) }
     if opt.triplet_sampler:
         iter_per_epoch = dataset_sizes['train']//(opt.batch_size//3)
-    elif opt.joint_all:
-        iter_per_epoch = len(dataloaders['train'].batch_sampler)
     else:
         iter_per_epoch = dataset_sizes['train']//opt.batch_size
         
@@ -45,7 +41,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
     if opt.triplet:
         miner = miners.MultiSimilarityMiner()
         criterion_triplet = losses.TripletMarginLoss(margin=0.3)
-    if opt.joint or opt.joint_all:
+    if opt.joint:
         if isinstance(model, torch.nn.DataParallel):
             dve_loss = torch.nn.DataParallel(
                 LossWrapper(dense_correlation_loss_dve),
@@ -70,11 +66,9 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                          model.module.fix_params(is_training=True)
                     else:
                          model.module.fix_params(is_training=True)
-                num_other = opt.num_other
                    
             else:
                 model.train(False)  # Set model to evaluate mode
-                num_other = 0
                 
             running_loss_ent = 0.0
             running_loss_pos = 0.0
@@ -93,7 +87,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
             batch_i=0
             for _, data in enumerate(dataloaders[phase]):
                 # get the inputs
-                if opt.joint or opt.joint_all:
+                if opt.joint:
                     inputs_ori, labels, direction,dve_img,warped_inputs,meta = data
                 else:
                     inputs_ori, labels, direction = data
@@ -119,19 +113,19 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     inputs = Variable(inputs.cuda().detach())
                     labels = Variable(labels.cuda().detach())
                     direction = Variable(direction.cuda().detach())
-                    if opt.joint or opt.joint_all and epoch >= opt.dve_start:
+                    if opt.joint and epoch >= opt.dve_start:
                         warped_inputs = Variable(warped_inputs.cuda().detach())
                         dve_img = Variable(dve_img.cuda().detach())
                 else:
                     inputs, labels, direction = Variable(inputs), Variable(labels), Variable(directions)
-                    if opt.joint or opt.joint_all and epoch >= opt.dve_start:
+                    if opt.joint and epoch >= opt.dve_start:
                         warped_inputs = Variable(warped_inputs)
                         dve_img = Variable(dve_img)
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 
                 # forward
-                if opt.joint or opt.joint_all and epoch >= opt.dve_start:
+                if opt.joint and epoch >= opt.dve_start:
                     if phase == 'val':
                         with torch.no_grad():
                             outputs = model(inputs)
@@ -149,14 +143,6 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                         else:
                             dve_outputs = model.dve_forward(dve_img)
                             dve_warped_outputs = model.dve_forward(warped_inputs)
-                elif opt.way1_dve:
-                    if phase == 'val':
-                        with torch.no_grad():
-                            dve_outputs = way1_dve(inputs)
-                            outputs = model(inputs,dve_outputs[0])
-                    else:
-                        dve_outputs = way1_dve(inputs)
-                        outputs = model(inputs,dve_outputs[0])
                 else:
                     if phase == 'val':
                         with torch.no_grad():
@@ -175,18 +161,6 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     
                 
                     labels_cur = labels
-                    if opt.joint_all and phase == 'train':
-                        # excluding images of other species for ent_loss and pos_loss & circle loss
-                        if opt.triplet_sampler:
-                            positions = labels < numClasses
-                        else:
-                            positions = torch.tensor([i for i in range(logits.size(0)) if (i%2==0) or i>=2*opt.num_other]).cuda()
-                        direction = direction[positions]
-                        logits = logits[positions]
-                        posture_logits = posture_logits[positions]
-                        labels_cur = labels[positions]
-                        if not opt.triplet_sampler:
-                            ff = ff[positions]
                     
                     
                     loss = 0.0
@@ -200,12 +174,8 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                         loss +=  pos_loss
                         _,preds_posture = torch.max(posture_logits.data, 1)
                         running_loss_pos += pos_loss.item() * posture_logits.shape[0]
-                    
                     if opt.circle:
-                        if opt.joint_all and phase =='train' and not opt.triplet_sampler:
-                            cir_loss = criterion_circle(*convert_label_to_similarity( ff, labels_cur))
-                        else:
-                            cir_loss = criterion_circle(*convert_label_to_similarity( ff, labels))
+                        cir_loss = criterion_circle(*convert_label_to_similarity( ff, labels))
                         running_loss_circle +=  cir_loss.item() 
                         loss += (opt.circle_loss_scale*cir_loss)/ff.shape[0]
                     if opt.triplet:
@@ -213,8 +183,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                         trip_loss = criterion_triplet(ff, labels, hard_pairs) #/now_batch_size
                         loss += trip_loss
                         running_loss_tri += trip_loss.item() * ff.shape[0]
-
-                    if opt.joint or opt.joint_all and epoch >= opt.dve_start:
+                    if opt.joint and epoch >= opt.dve_start:
                         if isinstance(model, torch.nn.DataParallel):
                             dloss = dve_loss(dve_outputs,dve_warped_outputs,meta,normalize_vectors=False).mean()
                         else:
@@ -227,7 +196,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                 
                 del inputs
                 del inputs_ori
-                if opt.joint or opt.joint_all and epoch >= opt.dve_start:
+                if opt.joint and epoch >= opt.dve_start:
                     del dve_img
                     del warped_inputs
                     del dve_outputs
@@ -275,7 +244,6 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     epoch_acc_posture = running_corrects_posture / dataset_sizes[phase]
 
             if phase == 'val':
-                # last_model_wts = model.module.state_dict()
                 CMC,ap,_ = evaluate_CMC(query_features, query_labels, gallery_features, gallery_labels,
                                       remove_closest=False, distance='euclidean')
                 
@@ -289,10 +257,6 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                 if epoch in [99,199,229,259,289,309]:
                     save_network(model,epoch,name)
                     
-                    
-                
-                    
-  
                 if opt.ent_cls:
                     writer.add_scalar('val_ent_loss',epoch_ent_loss, epoch)
                 if opt.use_posture:
@@ -301,7 +265,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     writer.add_scalar('val_circle_loss',epoch_cir_loss, epoch)
                 if opt.triplet:
                     writer.add_scalar('val_triplet_loss',epoch_tri_loss, epoch)
-                if opt.joint or opt.joint_all:
+                if opt.joint:
                     writer.add_scalar('val_dve_loss',epoch_dve_loss, epoch)
                 if opt.ent_cls:
                     writer.add_scalar('val_acc',epoch_acc, epoch)
@@ -311,7 +275,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     
                 if opt.test and epoch % opt.test_freq == 0:
                     seg = '_seg' if ('Seg' in root) else '_ori'
-                    test_metric = eval_on_one(model,way1_dve,opt.data_type,
+                    test_metric = eval_on_one(model,opt.data_type,
                                               opt.linear_num,concat=True,seg=seg)
                     if opt.data_type == 'tiger':
                         test_metric_map = test_metric["result"][0]["public_split"]['mmAP']
@@ -323,7 +287,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                         test_metric_top1 = test_metric['Rank@1']
                     writer.add_scalar('test_Rank@1',test_metric_top1, epoch)
                     writer.add_scalar('test_mAP',test_metric_map, epoch)
-                    if test_metric_map > best_ap and opt.test_freq == 1:
+                    if opt.test_freq == 1 and test_metric_map > best_ap:
                         best_ap = test_metric_map
                         save_network(model,epoch,name,best=True)
                     
@@ -331,7 +295,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                     seg = '_seg' if ('Seg' in root) else '_ori'
                     for datatype in ['tiger','yak','elephant']:
                         if datatype != opt.data_type:
-                            test_metric = eval_on_one(model,way1_dve,datatype,
+                            test_metric = eval_on_one(model,datatype,
                                                     opt.linear_num,concat=True,seg=seg)
                             if datatype == 'tiger':
                                 test_metric_map = test_metric["result"][0]["public_split"]['mmAP']
@@ -348,21 +312,16 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
                 scheduler.step()
                 if opt.ent_cls:
                     writer.add_scalar('train_ent_loss',epoch_ent_loss, epoch)
+                    writer.add_scalar('train_acc',epoch_acc, epoch)
                 if opt.use_posture:
                     writer.add_scalar('train_posture_loss',epoch_pos_loss, epoch)
+                    writer.add_scalar('train_acc_posture',epoch_acc_posture, epoch)
                 if opt.circle:
                     writer.add_scalar('train_circle_loss',epoch_cir_loss, epoch)
                 if opt.triplet:
                     writer.add_scalar('train_triplet_loss',epoch_tri_loss, epoch)
-                if opt.joint or opt.joint_all:
+                if opt.joint:
                     writer.add_scalar('train_dve_loss',epoch_dve_loss, epoch)
-                
-                if opt.ent_cls:
-                    writer.add_scalar('train_acc',epoch_acc, epoch)
-                if opt.use_posture:
-                    writer.add_scalar('train_acc_posture',epoch_acc_posture, epoch)
-       
-
 
     save_network(model,epoch,name,last=True)        
 
@@ -377,50 +336,40 @@ if __name__ =='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d','--device',default='0,1', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
     parser.add_argument('--name',default='ft_ResNet50', type=str, help='output model folder name')
-    parser.add_argument("-m", "--model_path", required=False, default=None)
+    parser.add_argument("-m", "--model_path", required=False, default=None, help='pretrained dve model path')
     parser.add_argument('--joint', action='store_true', help='jointly training dve and re-id' )
-    parser.add_argument('--stacked',action='store_true', help='stack last 3 layer of backbone to train with dve' )
-    parser.add_argument('--joint_all', action='store_true', help='jointly training dve(3 species) and re-id' )
-    parser.add_argument('--ori_dim', action='store_true', help='use original input dimension' )
-    parser.add_argument('--ori_stride', action='store_true', help='no modification to layer 2 of se-resnet' )
-    parser.add_argument('--way1_dve', action='store_true', help='use way1 of combining dve with re-id' )
     parser.add_argument('--test', action='store_true', help='log metric on test data' )
     parser.add_argument('--test_transfer', action='store_true', help='log metric on test data of other species' )
     parser.add_argument('--test_freq',default='1',type=int, help='test frequency' )
-    parser.add_argument('--version',default='1',type=str, help='version of way1 to use' )
+    parser.add_argument('--seed', default=0, type=int, help='seed')
     # data
     parser.add_argument("--data_type",required=True, default = 'yak',type=str)
     parser.add_argument('--batch_size', default=32, type=int, help='batchsize')
-    parser.add_argument('--num_other', default=0, type=int, help='number of images of other species in a batch')
     parser.add_argument('--triplet_sampler', action='store_true', help='making sure training batch has enough pos and neg.' )
     parser.add_argument('--use_posture', action='store_true', help='use the posture data for supervision' )
+    parser.add_argument('--background', action='store_true', help='includes background in data' )
+    parser.add_argument('--ori_dim', action='store_true', help='use original input dimension' )
     # optimizer
-    parser.add_argument('--label_smoothing', action='store_true', help='adds label smoothing' )
     parser.add_argument('--lr', default=0.05, type=float, help='learning rate')
     parser.add_argument('--weight_decay', default=5e-4, type=float, help='Weight decay. More Regularization Smaller Weight.')
     parser.add_argument('--total_epoch', default=60, type=int, help='total training epoch')
-    # backbone
-    parser.add_argument('--linear_num', default=512, type=int, help='feature dimension: 512 or default or 0 (linear=False)')
-    parser.add_argument('--stride', default=1, type=int, help='stride')
-    parser.add_argument('--droprate', default=0.5, type=float, help='drop rate')
-    parser.add_argument('--use_swin', action='store_true', help='use swin transformer 224x224' )
-    parser.add_argument('--use_vit', action='store_true', help='use vit transformer 224x224' )
-    parser.add_argument('--use_resnet', action='store_true', help='use resnet 64 dve' )
-    parser.add_argument('--use_resnet_complete', action='store_true', help='use resnet_dve_complete' )
-    parser.add_argument('--use_cnn5_v1', action='store_true', help='use tiger_cnn5_v1' )
-    # loss
-    parser.add_argument('--warm_epoch', default=0, type=int, help='the first K epoch that needs warm up')
-    parser.add_argument('--background', action='store_true', help='includes background in data' )
-    #parser.add_argument('--freeze_dve', default=0, type=int, help='the first few epoch that needs to freeze dve')
-    #parser.add_argument('--freeze_always', action='store_true', help='always keep the first layers for dve' )
-    parser.add_argument('--circle', action='store_true', help='use Circle loss' )
-    parser.add_argument('--triplet', action='store_true', help='use triplet loss' )
-    parser.add_argument('--ent_cls', action='store_true', help='use Classification loss for enetity' )
-    parser.add_argument('--seed', default=0, type=int, help='seed')
     parser.add_argument('--circle_loss_scale', default=1.0, type=float, help='circle_loss_scale')
     parser.add_argument('--dve_loss_scale', default=1.0, type=float, help='dve_loss_scale')
     parser.add_argument('--dve_start', default=0, type=int, help='epoch to start adding dve loss')
-
+    # backbone
+    parser.add_argument('--linear_num', default=512, type=int, help='feature dimension: 512 or default or 0 (linear=False)')
+    parser.add_argument('--stride', default=1, type=int, help='stride')
+    parser.add_argument('--ori_stride', action='store_true', help='no modification to layer 2 of se-resnet' )
+    parser.add_argument('--droprate', default=0.5, type=float, help='drop rate')
+    parser.add_argument('--use_vit', action='store_true', help='use vit transformer 224x224' )
+    parser.add_argument('--use_cnn5_v1', action='store_true', help='use tiger_cnn5_v1' )
+    # loss
+    parser.add_argument('--warm_epoch', default=0, type=int, help='the first K epoch that needs warm up')
+    parser.add_argument('--label_smoothing', action='store_true', help='adds label smoothing' )
+    parser.add_argument('--circle', action='store_true', help='use Circle loss' )
+    parser.add_argument('--triplet', action='store_true', help='use triplet loss' )
+    parser.add_argument('--ent_cls', action='store_true', help='use Classification loss for enetity' )
+    
     opt = parser.parse_args()
     #initialization
     use_gpu = torch.cuda.is_available()
@@ -457,41 +406,34 @@ if __name__ =='__main__':
         
     
     warper = None
-    if opt.joint or opt.joint_all:
+    if opt.joint:
         # joint dve and reid on one species
         warper = Warper(h,w)
         
     train_path_dic = {'tiger':'./datalist/mytrain.txt',
                       'yak':'./datalist/yak_mytrain_aligned.txt',
                       'elephant':'./datalist/ele_train.txt',
-                      'all':'./datalist/all_train_aligned.txt',
-                      'tiger_all':'./datalist/tiger_train_all.txt',
-                      'yak_all':'./datalist/yak_train_all.txt',
-                      'elephant_all':'./datalist/ele_train_all.txt'
+                      'all':'./datalist/all_train_aligned.txt'
                       }
 
     probe_path_dic = {'tiger':'./datalist/myval.txt',
-                        'yak':'./datalist/yak_myval_aligned.txt',
-                        'elephant':'./datalist/ele_val.txt',
-                        'all':'./datalist/all_val_aligned.txt'
-                        }
+                      'yak':'./datalist/yak_myval_aligned.txt',
+                      'elephant':'./datalist/ele_val.txt',
+                      'all':'./datalist/all_val_aligned.txt'
+                    }
     if opt.background:
         root = './data/Animal-2/'
     else:
         root = './data/Animal-Seg-V3/'
 
-    if opt.joint_all:
-        train_paths = [train_path_dic[opt.data_type+'_all'], ]
-        probe_paths = [probe_path_dic[opt.data_type], ]
-    else:
-        train_paths = [train_path_dic[opt.data_type], ]
-        probe_paths = [probe_path_dic[opt.data_type], ]
+
+    train_paths = [train_path_dic[opt.data_type], ]
+    probe_paths = [probe_path_dic[opt.data_type], ]
     
     print(train_paths)
     
-    
-    if opt.triplet_sampler:#classic triplet sampling
-        #DOES NOT support joint all with all species for now.
+    #vanilla triplet sampling
+    if opt.triplet_sampler:
         train_data, val_data, num_classes = load_triplet_direction_gallery_probe(
             root=root,
             train_paths=train_paths,
@@ -499,8 +441,7 @@ if __name__ =='__main__':
             signal=' ',
             input_size=(h,w),
             warper = warper,
-            cropped=opt.data_type != 'tiger',
-            joint_all=opt.joint_all
+            cropped=opt.data_type != 'tiger'
         )
         collate_fn=train_collate
     else:
@@ -518,50 +459,31 @@ if __name__ =='__main__':
     
     dict_nclasses = {'yak':121,'tiger':107,'elephant':337,'all':565}
     numClasses = dict_nclasses[opt.data_type]
-    if opt.joint_all:
-        assert num_classes == numClasses+2
-    else:
-        assert num_classes == numClasses
+    assert num_classes == numClasses
     
     
     image_datasets={'train':train_data,'val':val_data}
     
     
-    if opt.joint_all and not opt.triplet_sampler:
-        assert opt.data_type != 'all' # this is for training re-id with only one species,please use --joint instead
-        dataloaders={'train':DataLoader(image_datasets['train'],
-                                        batch_sampler = JointAllBatchSampler(image_datasets['train'],opt.batch_size,
-                                                                             opt.num_other,opt.data_type),num_workers=2),
-                    'val': DataLoader(image_datasets['val'], batch_size=opt.batch_size, collate_fn=torch.utils.data.dataloader.default_collate,drop_last=True,
-                                                    shuffle=True, num_workers=2, pin_memory=True,
-                                                    prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
-                    }
-        
+    batchsize = opt.batch_size
+    if opt.joint and opt.triplet_sampler:
+        batchsize  = opt.batch_size//3
+    dataloaders = {'train': DataLoader(image_datasets['train'], batch_size=batchsize, collate_fn=collate_fn,drop_last=True,
+                                                shuffle=True, num_workers=2, pin_memory=True,
+                                                prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
+                ,'val': DataLoader(image_datasets['val'], batch_size=opt.batch_size, collate_fn=torch.utils.data.dataloader.default_collate,drop_last=True,
+                                                shuffle=True, num_workers=2, pin_memory=True,
+                                                prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
+                }
 
-    else:
-        batchsize = opt.batch_size
-        if (opt.joint_all or opt.joint)  and opt.triplet_sampler:
-            batchsize  = opt.batch_size//3
-        dataloaders = {'train': DataLoader(image_datasets['train'], batch_size=batchsize, collate_fn=collate_fn,drop_last=True,
-                                                    shuffle=True, num_workers=2, pin_memory=True,
-                                                    prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
-                    ,'val': DataLoader(image_datasets['val'], batch_size=opt.batch_size, collate_fn=torch.utils.data.dataloader.default_collate,drop_last=True,
-                                                    shuffle=True, num_workers=2, pin_memory=True,
-                                                    prefetch_factor=2, persistent_workers=True) # 8 workers may work faster
-                    }
-  
         
     since = time.time()
-    if opt.joint or opt.joint_all:
+    if opt.joint:
         inputs, classes, directions, _,_,_ = next(iter(dataloaders['train']))
     else:
         inputs, classes, directions = next(iter(dataloaders['train']))
         
     print(time.time()-since)
-    
-    
-    
-    
     
     # set model
     
@@ -569,21 +491,11 @@ if __name__ =='__main__':
     
     if opt.use_cnn5_v1:
         model = tiger_cnn5_v1(numClasses,stride = opt.stride,linear_num=opt.linear_num,circle=return_feature,use_posture=opt.use_posture
-                              ,dve=opt.joint or opt.joint_all,stackeddve=opt.stacked, smallscale=not opt.ori_stride, model_path=opt.model_path if not opt.way1_dve else None)
-    elif opt.use_swin:
-        model = ft_net_swin(numClasses, opt.droprate, return_feature = return_feature, linear_num=opt.linear_num, use_posture=opt.use_posture)
+                              ,dve=opt.joint, smallscale=not opt.ori_stride, model_path=opt.model_path)
     elif opt.use_vit:
         model = ft_net_vit(numClasses, opt.droprate, return_feature = return_feature, linear_num=opt.linear_num, use_posture=opt.use_posture)
-    elif opt.way1_dve:
-        if opt.version == '1':
-            model = seresnet_dve_1(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num,dve_dim=64,use_posture=opt.use_posture)
-        elif opt.version == '2':
-            model = seresnet_dve_2(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num,dve_dim=64,use_posture=opt.use_posture)
-        elif opt.version == '1_5':
-            model = seresnet_dve_1_5(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num,dve_dim=64,use_posture=opt.use_posture)
-        else:
-            sys.exit('way1 model is not specified.')
     else:
+        #resnet50
         model = ft_net(numClasses, opt.droprate, circle = return_feature, linear_num=opt.linear_num, use_posture=opt.use_posture)
     print(model)
     
@@ -595,10 +507,6 @@ if __name__ =='__main__':
         base_params = list(map(id, model.model.backbone.parameters()))
         extra_params = list(filter(lambda p: id(p) not in base_params, model.parameters()))
         base_params = model.model.backbone.parameters()
-    elif opt.way1_dve:
-        base_params = list(map(id, model.get_base_params()))
-        extra_params = list(filter(lambda p: id(p) not in base_params, model.parameters()))
-        base_params = model.get_base_params()
     else:
         base_params = list(map(id, model.model.parameters()))
         extra_params = list(filter(lambda p: id(p) not in base_params, model.parameters()))
@@ -616,26 +524,9 @@ if __name__ =='__main__':
     if opt.label_smoothing:
         criterion = LabelSmoothingCrossEntropy(smoothing=0.1)
     else:
-        # not implemented to use with --joint_all
         criterion = nn.CrossEntropyLoss()
         
     
-    way1_dve=None
-    if opt.way1_dve:
-        #way1_dve = tiger_cnn5_64(stride=1)
-        way1_dve = ft_net_64(stride=1)
-        way1_dve = way1_dve.cuda()
-        way1_dve = nn.DataParallel(way1_dve)
-        
-        if opt.model_path is not None:
-            checkpoint = torch.load(opt.model_path)
-            way1_dve.load_state_dict(checkpoint['state_dict'])
-            print('Successfully loaded DVE from '+opt.model_path)
-        way1_dve = way1_dve.eval()
-
-        #freeze the network
-        for _, para in way1_dve.named_parameters():
-            para.requires_grad = False
     model = model.cuda()
     model = nn.DataParallel(model)
-    train(model,criterion,optimizer_ft,exp_lr_scheduler,dataloaders,opt.total_epoch,writer,way1_dve)
+    train(model,criterion,optimizer_ft,exp_lr_scheduler,dataloaders,opt.total_epoch,writer)

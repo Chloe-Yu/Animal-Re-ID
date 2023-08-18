@@ -198,7 +198,7 @@ class JointAllBatchSampler(Sampler):
 
 
 def load_triplet_direction_gallery_probe(root, train_paths, probe_paths, signal=' ',
-                                         input_size=(224, 448), warper=None,resize_size=(256,256),cropped=True,joint_all=False):
+                                         input_size=(224, 448), warper=None,resize_size=(256,256),cropped=True):
 
     train_list = []
     for i in train_paths:
@@ -251,7 +251,7 @@ def load_triplet_direction_gallery_probe(root, train_paths, probe_paths, signal=
         transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD)
     ])
 
-    train_dataset = dataset_direction_triplet(root, train_list, flag=1, signal=signal, transform=train_transformer,warper=warper,initial_transform=initial_transform,joint_all=joint_all)
+    train_dataset = dataset_direction_triplet(root, train_list, flag=1, signal=signal, transform=train_transformer,warper=warper,initial_transform=initial_transform)
     probe_dataset = dataset_direction(root, probe_list, flag=1, signal=signal, transform=probe_transformer,warper=warper,initial_transform=initial_transform)
 
    

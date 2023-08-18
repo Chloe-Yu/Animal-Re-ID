@@ -203,7 +203,7 @@ class dataset_direction(Dataset):
 # triplet load data, return anchor,positive and negtive
 #
 class dataset_direction_triplet(Dataset):
-    def __init__(self, root, label, flag=1, signal=' ',initial_transform=None, transform=None, warper=None,joint_all=False):
+    def __init__(self, root, label, flag=1, signal=' ',initial_transform=None, transform=None, warper=None):
         self._root = root
         self._flag = flag
         self._label = label
@@ -215,7 +215,6 @@ class dataset_direction_triplet(Dataset):
         self.num_classes = len(self._dict_train)
         self.warper = warper
         self._initial_transform = initial_transform
-        self._joint_all = joint_all
 
     def _list_images(self, root, label, signal):
         self.synsets = []
@@ -259,11 +258,7 @@ class dataset_direction_triplet(Dataset):
         return img
 
     def __len__(self):
-        num_other_species = 0
-        if self._joint_all:
-            species_label = max(self._labels)
-            num_other_species = len(self._dict_train[species_label])+len(self._dict_train[species_label-1])
-        return len(self.items)-num_other_species
+        return len(self.items)
     
     def get_dve_warp(self,image_name):
         img = Image.open(image_name)
@@ -301,10 +296,8 @@ class dataset_direction_triplet(Dataset):
         assert nums >= 2, f'{anchor_name} {names}'
     
         positive_name, positive_direct = random.choice(list(set(names) ^ set([(anchor_name, anchor_direct)])))
-        if not self._joint_all or random.random() <= 0.5:
-            negative_label = random.choice(list(set(self._labels) ^ set([anchor_label])))
-        else:
-            negative_label = random.choice([max(self._labels),max(self._labels)-1])
+        
+        negative_label = random.choice(list(set(self._labels) ^ set([anchor_label])))
             
         negative_name, negative_direct = random.choice(self._dict_train[negative_label])
 

@@ -9,9 +9,8 @@ from torchvision import transforms
 import os
 import random
 from PIL import Image
-from model import  ft_net_swin, tiger_cnn5_64,tiger_cnn5_v1,seresnet_dve_1,ft_net_64,seresnet_dve_1_5,seresnet_dve_2,ft_net_vit,ft_net
+from model import  tiger_cnn5_v1,ft_net_vit,ft_net
 from tiger_eval import evaluate_tiger
-import json
 import sys
 from utils import load_network,fliplr
 from dataloader import load_gallery_probe_data
@@ -19,7 +18,7 @@ from metric import evaluate_CMC
 sys.path.insert(0,os.path.join(os.path.dirname(__file__), '../'))
 
 
-def extract_feature(model,dataloaders,linear_num,batchsize,concat,dve=None):
+def extract_feature(model,dataloaders,linear_num,batchsize,concat):
     count = 0
     names = []
 
@@ -37,16 +36,8 @@ def extract_feature(model,dataloaders,linear_num,batchsize,concat,dve=None):
             flip_inputs = fliplr(img)
             flip_inputs = Variable(flip_inputs.cuda())
             
-            if dve is not None:
-                f_dves = dve(input_img)[0]
-                flip_f_dves = dve(flip_inputs)[0]
-                feature = model(input_img, f_dves)[1] 
-                flip_features = model(flip_inputs,flip_f_dves)[1]
-                
-            else:
-                feature = model(input_img)[1]
-                flip_features = model(flip_inputs)[1]
-            #print(feature.shape,flip_features.shape)
+            feature = model(input_img)[1]
+            flip_features = model(flip_inputs)[1]
             ff += torch.cat((feature, flip_features), dim=1)
             
         else:
@@ -55,15 +46,7 @@ def extract_feature(model,dataloaders,linear_num,batchsize,concat,dve=None):
                     img = fliplr(img)
                         
                 input_img = Variable(img.cuda())
-                f_dves = None
-                if dve is not None:
-                    f_dves = dve(input_img)[0]
-                        
-                
-                if dve is not None:
-                    outputs = model(input_img, f_dves) 
-                else:
-                    outputs = model(input_img)
+                outputs = model(input_img)
                 
                 ff += outputs[1]
                     
@@ -88,7 +71,7 @@ def extract_feature(model,dataloaders,linear_num,batchsize,concat,dve=None):
 
 
 
-def eval_on_one(model,dve,dataset_type,linear_num,concat,seg=True,batch_size=32,sample=False):
+def eval_on_one(model,dataset_type,linear_num,concat,seg=True,batch_size=32):
     if dataset_type == 'tiger':
         data_transforms = transforms.Compose([
             # transforms.Resize((324,504), Image.BILINEAR),
@@ -148,12 +131,8 @@ def eval_on_one(model,dve,dataset_type,linear_num,concat,seg=True,batch_size=32,
     dataloaders = {'gallery':gallery_iter,'query':probe_iter}
     
     with torch.no_grad():
-        gallery_feature,gallery_label,gallery_names = extract_feature(model,dataloaders['gallery'],linear_num,batch_size,concat,dve)
-        query_feature, query_label,query_names = extract_feature(model,dataloaders['query'],linear_num,batch_size,concat,dve)
-        if sample:
-            query_feature = query_feature[10:40]
-            query_label = query_label[10:40]
-            query_names = query_names[10:40]
+        gallery_feature,gallery_label,gallery_names = extract_feature(model,dataloaders['gallery'],linear_num,batch_size,concat)
+        query_feature, query_label,query_names = extract_feature(model,dataloaders['query'],linear_num,batch_size,concat)
     
     CMC,ap,q_g_dist = evaluate_CMC(query_feature, query_label, gallery_feature, gallery_label,remove_closest,'cos',True)
     
@@ -190,15 +169,15 @@ def eval_on_one(model,dve,dataset_type,linear_num,concat,seg=True,batch_size=32,
     return metric
     
     
-def evaluate(model,dve,opt):
+def evaluate(model,opt):
     metrics = {}
     if opt.dataset_type == 'all':
         for dataset_type in ['tiger','h_yak','elephant']:   
-            metrics[dataset_type]=eval_on_one(model,dve,dataset_type,opt.linear_num,
-                                              opt.concat,seg,opt.batchsize,opt.sample)
+            metrics[dataset_type]=eval_on_one(model,dataset_type,opt.linear_num,
+                                              opt.concat,seg,opt.batchsize)
     else:
-        metrics[opt.dataset_type]=eval_on_one(model,dve,opt.dataset_type,opt.linear_num,
-                                              opt.concat,seg,opt.batchsize,opt.sample)
+        metrics[opt.dataset_type]=eval_on_one(model,opt.dataset_type,opt.linear_num,
+                                              opt.concat,seg,opt.batchsize)
     return metrics
         
     
@@ -214,7 +193,6 @@ if __name__ == '__main__':
     parser.add_argument('--linear_num', default=512, type=int, help='feature dimension: 512 or default or 0 (linear=False)')
     parser.add_argument('--use_swin', action='store_true',help='swin is used')
     parser.add_argument('--use_ori', action='store_true', help='use original image' )
-    parser.add_argument('--way1_dve', action='store_true', help='use method1 for combining dve with re-id' )
     parser.add_argument('--name', default='ft_ResNet50', type=str, help='model name')
     parser.add_argument('--concat', action='store_true', help='concat flipped feature' )
     parser.add_argument('--ori_dim', action='store_true', help='use original input image dimension' )
@@ -224,7 +202,6 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default="0", help='random seed')
     parser.add_argument('--joint', action='store_true', help='trained joint or joint all' )
     parser.add_argument('--stacked', action='store_true', help='stack last 3 layers of backbone for dve loss.' )
-    parser.add_argument('--sample', action='store_true', help='sample 50 query' )
     parser.add_argument('--no_posture', action='store_true', help='posture data wa not used for training' )
 
     opt = parser.parse_args()
@@ -232,7 +209,7 @@ if __name__ == '__main__':
     
     opt_dic = {'model_type':opt.model_type,'dataset_type':opt.dataset_type,'model_path':opt.model_path,'gpu_ids':opt.gpu_ids,
                'batchsize':opt.batchsize,'linear_num':opt.linear_num,'use_swin':opt.use_swin,'use_ori':opt.use_ori,
-               'way1_dve':opt.way1_dve,'name':opt.name,'concat':opt.concat,'ori_dim':opt.ori_dim,'ori_stride':opt.ori_stride,
+               'name':opt.name,'concat':opt.concat,'ori_dim':opt.ori_dim,'ori_stride':opt.ori_stride,
                'transform_ori':opt.transform_ori,'resume':opt.resume,'seed':opt.seed,'joint':opt.joint}
 
     seed = int(opt.seed)
@@ -282,21 +259,10 @@ if __name__ == '__main__':
     
     seg = '_ori' if opt.use_ori else '_seg'
     
-    
-    #use_posture = True if opt.model_path is not None and ('posture' in opt.model_path) else False
-    
     use_posture = False if opt.no_posture else True
     
-    if name == 'ft_net_swin':
-        model_structure = ft_net_swin(nclasses, linear_num=opt.linear_num, pretrained=True,img_size=[h,w], use_posture = use_posture)
-    elif name == 'tiger_cnn5_v1':
+    if name == 'tiger_cnn5_v1':
         model_structure = tiger_cnn5_v1(nclasses, linear_num=opt.linear_num, circle=True,use_posture=use_posture,dve=opt.joint,stackeddve=opt.stacked,smallscale = not opt.ori_stride)
-    elif name == 'seresnet_dve_1':
-        model_structure = seresnet_dve_1(nclasses, 0.5, 1, circle =True , linear_num=opt.linear_num,dve_dim=64,use_posture=use_posture)
-    elif name == 'seresnet_dve_1_5':
-        model_structure = seresnet_dve_1_5(nclasses, 0.5, 1, circle =True , linear_num=opt.linear_num,dve_dim=64,use_posture=use_posture)
-    elif name == 'seresnet_dve_2':
-        model_structure = seresnet_dve_2(nclasses, 0.5, 1, circle =True , linear_num=opt.linear_num,dve_dim=64,use_posture=use_posture)
     elif name == 'vit':
         model_structure = ft_net_vit(nclasses, use_posture = use_posture)
     elif name == 'resnet':
@@ -314,42 +280,22 @@ if __name__ == '__main__':
             model = nn.DataParallel(model)
     
     model = model.eval()
-    
-    dve=None
-    if opt.way1_dve:
-        dve = ft_net_64(stride=1)
-        dve = dve.cuda()
-        dve = nn.DataParallel(dve)
-        if opt.resume is not None:
-            checkpoint = torch.load(opt.resume)
-            dve.load_state_dict(checkpoint['state_dict'])
-            print('Successfully loaded DVE from '+opt.resume)
-        
-        dve = dve.eval()
 
 
-    metric = evaluate(model,dve,opt)
+    metric = evaluate(model,opt)
 
     con = 'concat_' if opt.concat else ''
     to = 'to_' if opt.transform_ori else ''
-    sample = '_sample' if opt.sample else ''
     
-    res_name = seg+ con+to+sample+ name+str(seed)+'.txt'
+    res_name = seg+ con+to+ name+str(seed)+'.txt'
     
     if opt.model_path is not None:
         res_name = opt.dataset_type+'_'+opt.model_path.split('/')[-2]+'_'+opt.model_path.split('/')[-1][:-4]+'_'+res_name
-        if opt.way1_dve and opt.resume is None:
-            res_name = 'untrained_dve_'+res_name
-    elif opt.way1_dve and opt.resume is None:
-        res_name = opt.dataset_type+'_untrained_both_'+res_name
-    elif opt.way1_dve and opt.resume is not None:
-        res_name = opt.dataset_type+'_untrained_backbone_'+res_name
     else:
         res_name = opt.dataset_type+'_untrained_'+res_name
     
     metric['opt'] = opt_dic
     result_metric = open('./result/'+res_name,'w')
-    #json.dump(metric, open('./result/'+res_name[:-3]+'json','w'))
     
     metric_str = "\n".join([k+': '+str(v) for k,v in metric.items()])
     result_metric.write(metric_str)

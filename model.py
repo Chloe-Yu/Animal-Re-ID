@@ -5,14 +5,10 @@ from torch.autograd import Variable
 import torch.utils.model_zoo as model_zoo
 from torchvision import models
 import timm
-from swin_transformer import SwinTransformer
-from itertools import chain
 from torch.autograd import Variable
 from collections import OrderedDict
 import torch.nn.functional as F
 from adaptive_avgmax_pool import SelectAdaptivePool2d
-import numpy as np
-import matplotlib.pyplot as plt
 
 IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
@@ -457,11 +453,10 @@ class tiger_cnn5_64(tiger_cnn5_512):
 # loading pretrained model on dve: dve=True, model_path=PRETRAINED_MODEL_PATH
 ##################################
 class tiger_cnn5_v1(nn.Module):
-    def __init__(self, class_num,stride=1,droprate=0.5,linear_num=512,circle=True,use_posture=True,dve=False,stackeddve=False,smallscale=True,model_path=None):
+    def __init__(self, class_num,stride=1,droprate=0.5,linear_num=512,circle=True,use_posture=True,dve=False,smallscale=True,model_path=None):
         # dve means dve feature is needed whether for method1 or joint training
         super(tiger_cnn5_v1, self).__init__()
         self.dve = dve
-        self.stacked = stackeddve
         
         self.model = tiger_cnn5_512(stride,smallscale=smallscale)
         
@@ -475,7 +470,7 @@ class tiger_cnn5_v1(nn.Module):
         self.model.backbone.last_linear = nn.Sequential()
         
         if dve:
-            num_dim = 3584 if stackeddve else 512
+            num_dim = 512
             self.last_conv = nn.Sequential(
             nn.Conv2d(num_dim, 64, 1, 1),
             nn.BatchNorm2d(64),
@@ -505,15 +500,8 @@ class tiger_cnn5_v1(nn.Module):
         x = self.model.backbone.layer0(x)
         x = self.model.backbone.layer1(x)
         x_l2 = self.model.backbone.layer2(x)
-        if not self.stacked:
-            dve_f = self.last_conv(x_l2)
-        else:
-            x_l3 = self.model.backbone.layer3(x_l2)
-            x_l4 = self.model.backbone.layer4(x_l3)
-            up_xl3 = F.interpolate(x_l3, size=x_l2.size()[2:], mode='bilinear', align_corners=True)
-            up_x14 = F.interpolate(x_l4, size=x_l2.size()[2:], mode='bilinear', align_corners=True)
-            x_stacked = torch.cat([x_l2,up_xl3,up_x14],dim=1)
-            dve_f = self.last_conv(x_stacked)
+        
+        dve_f = self.last_conv(x_l2)
         
         return dve_f
     
@@ -529,69 +517,6 @@ class tiger_cnn5_v1(nn.Module):
             return x_l4
         else:
             return self.forward(x)[1]
-    
-    def test_adapt(self, x, dve_f, probe_dve_normed, shuffle = False, simple = False, probe_l4= None, alpha = 1.0 ,softmax=False):
-        #dve_f [B,64,56,56]-> [B,64,56*56] -> [B,56*56,64]
-        #probe_dve_normed ([64,56,56] -> [64,56*56)
-        B,D, H, W = dve_f.size()
-        dve_f = dve_f.reshape(dve_f.shape[0],dve_f.shape[1],-1).transpose(1,2)
-        dve_f_norm = dve_f.div(1e-12+torch.norm(dve_f,p=2, dim=1, keepdim=True).expand_as(dve_f))
-        
-        cos_sim = torch.matmul(dve_f_norm,probe_dve_normed) # [B,56*56,56*56]
-        scores,positions = cos_sim.max(dim=2) # [B,56*56]
-        #scores = cos_sim.sum(dim=2) # [B,56*56]
-        if softmax:
-            att = F.softmax(scores.view(B,1,-1), dim=2).view(B,1,H,W) # [B,1,56,56]
-        else:
-            att = ((scores-scores.min(dim=1,keepdim=True)[0])/(scores.max(dim=1,keepdim=True)[0]-scores.min(dim=1,keepdim=True)[0])).view(B,1,H,W)
-            
-        # print('scores',scores)
-        # print('att',att.shape,att)
-        # plt.imshow(att[0,0].detach().cpu().numpy())
-        # plt.savefig('att.png')
-        
-        x = self.model.backbone.layer0(x)
-        x = self.model.backbone.layer1(x)
-        x_l2 = self.model.backbone.layer2(x) # [B,512,56,56]
-        x_l3 = self.model.backbone.layer3(x_l2)
-        x_l4 = self.model.backbone.layer4(x_l3)  # [B,2048,28,28]
-        x_l4 = F.interpolate(x_l4, size=x_l2.size()[2:], mode='bilinear', align_corners=True)
-        
-        if shuffle:
-            # x_l2 = x_l2.reshape(B,-1,H*W).gather(2,positions.unsqueeze(1).expand(B,x_l2.shape[1],H*W))
-            # x_l2 = x_l2.reshape(B,-1,H,W)
-            x_l4 = x_l4.reshape(B,-1,H*W).gather(2,positions.unsqueeze(1).expand(B,x_l4.shape[1],H*W))
-            x_l4 = x_l4.reshape(B,-1,H,W)
-        
-        if not simple:
-            
-            x_l4 = torch.mul(1 + alpha*att.expand_as(x_l4), x_l4)/(1.0+alpha)  # [B,2048,56,56]
-            
-            x = torch.mean(torch.mean(x_l4, dim=2), dim=2)
-            x = self.classifier(x)
-            
-            return x[1]
-        else:
-            assert probe_l4 is not None
-            
-            x_l4_norm = x_l4.div(1e-12+torch.norm(x_l4, p=2, dim=1, keepdim=True).expand_as(x_l4)) # [B,2048,56,56]
-            #probe_l2_norm = probe_l2.div(torch.norm(probe_l2, p=2, dim=1, keepdim=True).expand_as(probe_l2))
-            probe_l4 = F.interpolate(probe_l4.unsqueeze(0), size=x_l2.size()[2:], mode='bilinear', align_corners=True)
-            probe_l4_norm = probe_l4.div(1e-12+torch.norm(probe_l4, p=2, dim=1, keepdim=True).expand_as(probe_l4))
-            cos_dis = 1-torch.mul(x_l4_norm,probe_l4_norm.cuda()).sum(dim=1) # [B,56,56]
-            cos_dis = torch.mul(att.squeeze(1), cos_dis)#
-            scores = cos_dis.sum(dim=1).sum(dim=1) # [B]
-            return scores #negative sum of cosine similarity-> equivalent to cosine distance
-        
-        
-
-    def eval_forward(self,x):
-        x = self.model.backbone.layer0(x)
-        x = self.model.backbone.layer1(x)
-        x = self.model.backbone.layer2(x)
-        x = self.model.backbone.layer3(x)
-        x = self.model.backbone.layer4(x) #[B,2048,28,28]
-        return x
         
     
     def fix_params(self, is_training=True):
@@ -626,221 +551,6 @@ class ft_net_vit(nn.Module):
         for p in self.model.parameters():
             p.requires_grad = is_training
     
-
-# Define the swin_base_patch4_window7_224 Model
-# pytorch > 1.6
-class ft_net_swin(nn.Module):
-
-    def __init__(self, class_num, droprate=0.5, return_feature=True, linear_num=512, pretrained=True,dim=3,img_size=[224,224],use_posture=False):
-        super(ft_net_swin, self).__init__()
-        self.pretrained = pretrained
-        if pretrained:
-            model_ft = timm.create_model('swin_base_patch4_window7_224', pretrained=True, drop_path_rate = 0.2)
-        else:
-            model_ft = SwinTransformer(img_size=img_size,patch_size=4,in_chans=dim,drop_path_rate=0.2,embed_dim=128,
-                                       depths=[2, 2, 18, 2], num_heads=[4,8,16,32], window_size=7)
-        # avg pooling to global pooling
-        #model_ft.avgpool = nn.AdaptiveAvgPool2d((1,1))
-        model_ft.head = nn.Sequential() # save memory
-        self.model = model_ft
-        self.avgpool = nn.AdaptiveAvgPool1d(1)
-        self.classifier = ClassBlock(1024, class_num, droprate, linear=linear_num, return_f = return_feature, use_posture=use_posture)
-        print('Make sure timm > 0.6.0 and you can install latest timm version by pip install git+https://github.com/rwightman/pytorch-image-models.git')
-    def forward(self, x):
-        x = self.model.forward_features(x)
-        # swin is update in latest timm>0.6.0, so I add the following two lines.
-        if self.pretrained:
-            x = self.avgpool(x.permute((0,2,1)))
-            x = x.view(x.size(0), x.size(1))
-        
-        x = self.classifier(x)
-        return x
-    def fix_params(self, is_training=True):
-        for p in self.model.parameters():
-            p.requires_grad = is_training
-    
-    
-class seresnet_dve_1(nn.Module):
-
-    def __init__(self, class_num, droprate=0.5, stride=1, circle=True, linear_num=512,dve_dim=64,use_posture=True):
-        super(seresnet_dve_1, self).__init__()
-        model = seresnet50(pretrained=True)
-        if stride == 1:
-            model.layer2[0].downsample[0].stride = (1, 1)
-            model.layer2[0].conv2.stride = (1, 1)
-            model.layer4[0].downsample[0].stride = (1, 1)
-            model.layer4[0].conv2.stride = (1, 1)
-        
-        self.model = model
-        self.model.last_linear = nn.Sequential()
-        
-        self.circle = circle
-        self.merge = nn.Sequential(
-            nn.Conv2d(
-                        in_channels=512+dve_dim,
-                        out_channels=512,
-                        kernel_size=3,
-                        stride=2,
-                        padding=1
-            ),#B,512,28,28
-            nn.BatchNorm2d(512),
-            nn.ReLU(inplace=True)
-        )
-        self.merge.apply(weights_init_kaiming)
-           
-        self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle, use_posture=use_posture)
-   
-        
-    def forward(self, x, f_dev):
-        
-        x = self.model.layer0(x)
-        x = self.model.layer1(x)
-        x = self.model.layer2(x)#B,512,56,56
-        
-        x = torch.concat([x,f_dev],dim=1) #B,512+64,56,56
-        x = self.merge(x) #B,512,28,28
-        
-        x = self.model.layer3(x)
-        x = self.model.layer4(x)
-        
-        x = torch.mean(torch.mean(x, dim=2), dim=2)
-        x = self.classifier(x)
-     
-        return x
-    
-    def get_base_params(self):
-        return self.model.parameters()
-
-    def fix_params(self, is_training=True):
-        for p in self.get_base_params():
-            p.requires_grad = is_training
-
-#working better than 1 & 1_2
-class seresnet_dve_1_5(nn.Module):
-
-    def __init__(self, class_num, droprate=0.5, stride=1, circle=True, linear_num=512,dve_dim=64,use_posture=True):
-        super(seresnet_dve_1_5, self).__init__()
-        model = seresnet50(pretrained=True)
-        if stride == 1:
-            model.layer2[0].downsample[0].stride = (1, 1)
-            model.layer2[0].conv2.stride = (1, 1)
-            model.layer4[0].downsample[0].stride = (1, 1)
-            model.layer4[0].conv2.stride = (1, 1)
-        
-        self.model = model
-        self.model.last_linear = nn.Sequential()
-        
-        self.circle = circle
-        self.merge = nn.Sequential(
-            nn.Conv2d(
-                        in_channels=512+dve_dim,
-                        out_channels=512,
-                        kernel_size=1,
-                        stride=1,
-                        padding=0
-            ),#B,512,56,56
-            nn.BatchNorm2d(512),
-            nn.ReLU(inplace=True)
-        )
-        self.merge.apply(weights_init_kaiming)
-           
-        self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle, use_posture=use_posture)
-   
-        
-    def forward(self, x, f_dev):
-        
-        x = self.model.layer0(x)
-        x = self.model.layer1(x)
-        x = self.model.layer2(x)#B,512,56,56
-        
-        x = torch.concat([x,f_dev],dim=1) #B,512+64,56,56
-
-        x = self.merge(x) #B,512,56,56
-        
-        x = self.model.layer3(x)
-        x = self.model.layer4(x)
-        
-        x = torch.mean(torch.mean(x, dim=2), dim=2)
-        x = self.classifier(x)
-     
-        return x
-    
-    def get_base_params(self):
-        return self.model.parameters()
-
-    def fix_params(self, is_training=True):
-        for p in self.get_base_params():
-            p.requires_grad = is_training
-
-
-class seresnet_dve_2(nn.Module):
-
-    def __init__(self, class_num, droprate=0.5, stride=1, circle=True, linear_num=512,dve_dim=64,use_posture=True):
-        super(seresnet_dve_2, self).__init__()
-        model = seresnet50(pretrained=True)
-        if stride == 1:
-            model.layer2[0].downsample[0].stride = (1, 1)
-            model.layer2[0].conv2.stride = (1, 1)
-            model.layer4[0].downsample[0].stride = (1, 1)
-            model.layer4[0].conv2.stride = (1, 1)
-        
-        self.model = model
-        self.model.last_linear = nn.Sequential()
-        
-        self.circle = circle
-        self.pre_merge = nn.Sequential(
-            nn.Conv2d(
-                        in_channels=512,
-                        out_channels=2*dve_dim,
-                        kernel_size=1,
-                        stride=1,
-                        padding=0
-            ),#B,128,56,56
-            nn.BatchNorm2d(2*dve_dim),
-            nn.ReLU(inplace=True)
-        )
-        self.merge = nn.Sequential(
-            nn.Conv2d(
-                        in_channels=3*dve_dim,
-                        out_channels=512,
-                        kernel_size=1,
-                        stride=1,
-                        padding=0,
-            ),#B,64*3,56,56
-            nn.BatchNorm2d(512),
-            nn.ReLU(inplace=True)
-        )
-        self.pre_merge.apply(weights_init_kaiming)
-        self.merge.apply(weights_init_kaiming)
-           
-        self.classifier = ClassBlock(2048, class_num, droprate, linear=linear_num, return_f = circle, use_posture=use_posture)
-   
-        
-    def forward(self, x, f_dev):
-        
-        x = self.model.layer0(x)
-        x = self.model.layer1(x)
-        x = self.model.layer2(x)#B,512,56,56
-        
-        x = self.pre_merge(x) #B,128,56,56
-        x = torch.concat([x,f_dev],dim=1) #B,128+64,56,56
-        x = self.merge(x) #B,512,56,56
-        
-        x = self.model.layer3(x)
-        x = self.model.layer4(x)
-        
-        x = torch.mean(torch.mean(x, dim=2), dim=2)
-        x = self.classifier(x)
-     
-        return x
-    
-    def get_base_params(self):
-        return self.model.parameters()
-    
-    def fix_params(self, is_training=True):
-        for p in self.get_base_params():
-            p.requires_grad = is_training
-
 
 
 # Define the ResNet50-based Model
@@ -878,38 +588,7 @@ class ft_net(nn.Module):
             p.requires_grad = is_training
     
 
-class ft_net_64(nn.Module):
-
-    def __init__(self, stride=2, ibn=False):
-        super(ft_net_64, self).__init__()
-        model_ft = models.resnet50(pretrained=True)
-        if ibn==True:
-            model_ft = torch.hub.load('XingangPan/IBN-Net', 'resnet50_ibn_a', pretrained=True)
-        # avg pooling to global pooling
-        if stride == 1:
-            model_ft.layer2[0].downsample[0].stride = (1,1)
-            model_ft.layer2[0].conv2.stride = (1,1)
-        self.model = model_ft
-        
-        self.last_conv = nn.Sequential(
-            nn.Conv2d(512, 64, 1, 1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True)
-        )
-        _weight_init(self.last_conv)
-        
-
-    def forward(self, x):
-        x = self.model.conv1(x)
-        x = self.model.bn1(x)
-        x = self.model.relu(x)
-        x = self.model.maxpool(x)
-        x = self.model.layer1(x)
-        x = self.model.layer2(x) #([8, 512, 56, 56])
-        x = self.last_conv(x) #([8, 64, 56, 56])
-        
-        return [x]
-    
+  
 if __name__ == '__main__':
 
     x = Variable(torch.randn(2, 3, 224, 224))
@@ -919,6 +598,4 @@ if __name__ == '__main__':
     model = ft_net_vit(101)
     #print(model)
     out = model(x)
-    #model = seresnet_dve_2(101)
-    #out = model.test_adapt(x,f_dve,probe_dve_normed,shuffle=True,simple=True,probe_l2_norm=probe_l2_norm)
     print(out[0])
