@@ -249,12 +249,12 @@ if __name__ == '__main__':
                         'debug':'./datalist/debug_ele_train.txt'}
 
     data_dirs = {
-            'tiger_ori':'./data/tiger/test_original',
-            'tiger_seg':'./data/tiger/tiger_test_isnet_seg',
-            'elephant_seg':'./data/ele_test_v3_seg',
-            'elephant_ori':'./data/elephant',
-            'h_yak_seg':'./data/yak_test_seg_isnet_pp',
-            'h_yak_ori':'./data/val'
+            'tiger_ori':'./data/tiger/test',
+            'tiger_seg':'./data/tiger/tiger_test_masked',
+            'elephant_seg':'./data/elephant_test_masked',
+            'elephant_ori':'./data/elephant_test',
+            'h_yak_seg':'./data/yak_test_masked',
+            'h_yak_ori':'./data/yak_test'
         }
     
     seg = '_ori' if opt.use_ori else '_seg'

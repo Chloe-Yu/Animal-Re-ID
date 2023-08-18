@@ -314,3 +314,6 @@
 /home/yinyu/miniconda3/envs/thesis/bin/python train.py --name   --seed 42 --triplet_sampler --test --ent_cls --joint --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 80 -d 0,1 --data_type yak --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/cnn5_v1_circle_posture_segv3_ls_yak_dve_joint_correct_scaled_test_batch.out 2>&1
 
 /home/yinyu/miniconda3/envs/thesis/bin/python dump_feature.py -mt yak -d yak  -m /home/yinyu/Thesis/animal-reid/model/cnn5_v1_circle_posture_ls_yak_correct_test_trans_batch/net_last.pth 
+
+
+#/home/yinyu/miniconda3/envs/thesis/bin/python train.py --name tmp --background --triplet_sampler --test --ent_cls --joint --batch_size 30 --circle --use_cnn5_v1 --lr 0.01 --total_epoch 80 -d 0 --data_type yak --use_posture --warm_epoch 3  --label_smoothing --circle_loss_scale 2.0 --dve_loss_scale 0.2 >./slurm/tmp.out 2>&1

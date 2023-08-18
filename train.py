@@ -33,7 +33,7 @@ def train(model, criterion, optimizer, scheduler,dataloaders, num_epochs=25,writ
         iter_per_epoch = dataset_sizes['train']//opt.batch_size
         
     samples_per_epoch = iter_per_epoch*opt.batch_size
-    samples_per_epoch_cur = iter_per_epoch*(opt.batch_size-opt.num_other)
+    samples_per_epoch_cur = iter_per_epoch*opt.batch_size
     warm_iteration = iter_per_epoch*opt.warm_epoch
     
     if opt.circle:
@@ -422,9 +422,9 @@ if __name__ =='__main__':
                       'all':'./datalist/all_val_aligned.txt'
                     }
     if opt.background:
-        root = './data/Animal-2/'
+        root = './data/Animal/'
     else:
-        root = './data/Animal-Seg-V3/'
+        root = './data/Animal-masked/'
 
 
     train_paths = [train_path_dic[opt.data_type], ]

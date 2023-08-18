@@ -1,12 +1,11 @@
 ## DataSet
-[2019.8.1]
 
 * mytrain.txt, myval.txt: official train-set split so that each entity has one image in validation set.
 There should be 1780 in train, 107 in val, however, only 1824 heading direction annotations are provided in PGCFL. so 1718 train images are actually used.
 
 * test.txt: official test-set, non-labeled.
 
-### train.txt  
+### mytrain.txt  
 the image path is relative path.
 
 | image_path | class_name | left(0)/right(1)|
@@ -17,7 +16,7 @@ the image path is relative path.
 
 
 
-### test.txt
+### mytest.txt
 the image path is relative path.
 
 | image_path |

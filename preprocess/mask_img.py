@@ -292,6 +292,10 @@ def get_joint_masks():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     sam.to(device=device)
     
+    output_path = parent+"/data/Animal-masked/"
+    if not os.path.isdir(output_path):
+        os.mkdir(output_path)
+    
     mask_generator = SamAutomaticMaskGenerator(sam)
     print("Getting masks for tigers...")
     get_tiger_joint_masks(mask_generator)
